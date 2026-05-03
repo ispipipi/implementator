@@ -69,11 +69,16 @@ export const useAppStore = create<AppState>()(
       proyectoActivoId: null,
       faseActivaId: null,
       diasAnticipacionAlerta: 3,
+      tema: 'noche',
 
       setUsuarioActivo: (u) => set({ usuarioActivo: u }),
 
       setVista: (vista, proyectoId, faseId) =>
         set({ vista, proyectoActivoId: proyectoId ?? null, faseActivaId: faseId ?? null }),
+
+      setTema: (tema) => set({ tema }),
+
+      alternarTema: () => set((s) => ({ tema: s.tema === 'noche' ? 'dia' : 'noche' })),
 
       actualizarTarea: (id, cambios, usuario) => {
         const { tareas } = get();
@@ -110,6 +115,29 @@ export const useAppStore = create<AppState>()(
               ? { ...t, fechaInicioPlan: inicio, fechaFinPlan: fin, actualizadoEn: new Date().toISOString() }
               : t,
           ),
+        }));
+        get().recalcularAlertas();
+      },
+
+      crearTarea: (t) => {
+        set((s) => ({
+          tareas: [
+            ...s.tareas,
+            {
+              ...t,
+              id: makeId('tarea'),
+              actualizadoEn: new Date().toISOString(),
+              historial: [],
+            },
+          ],
+        }));
+        get().recalcularAlertas();
+      },
+
+      eliminarTarea: (id) => {
+        set((s) => ({
+          tareas: s.tareas.filter((t) => t.id !== id),
+          alertas: s.alertas.filter((a) => a.tareaId !== id),
         }));
         get().recalcularAlertas();
       },
@@ -206,6 +234,7 @@ export const useAppStore = create<AppState>()(
         tareas: state.tareas,
         alertas: state.alertas,
         diasAnticipacionAlerta: state.diasAnticipacionAlerta,
+        tema: state.tema,
       }),
     },
   ),

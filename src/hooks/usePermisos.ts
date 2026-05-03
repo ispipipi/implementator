@@ -19,7 +19,5 @@ export const usePermisos = () => {
 export const useProyectosVisibles = () => {
   const { proyectos, usuarioActivo } = useAppStore();
   if (!usuarioActivo) return [];
-  if (usuarioActivo.perfil === 'artbpo_admin' || usuarioActivo.perfil === 'tmf' || usuarioActivo.perfil === 'artbpo_ejecutivo') return proyectos;
-  if (usuarioActivo.perfil === 'cliente') return proyectos.filter((p) => p.id === usuarioActivo.proyectoClienteId);
-  return [];
+  return proyectos;
 };

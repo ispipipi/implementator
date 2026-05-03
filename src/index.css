@@ -9,6 +9,16 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+html[data-theme='dia'] {
+  color-scheme: light;
+  background: #f6f8fc;
+}
+
+html[data-theme='noche'] {
+  color-scheme: dark;
+  background: #0f1117;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -19,6 +29,13 @@ body {
   min-height: 100vh;
   background: #0f1117;
   color: #f8fafc;
+}
+
+html[data-theme='dia'] body {
+  background:
+    linear-gradient(180deg, rgba(236, 253, 245, 0.8), rgba(248, 250, 252, 0.98) 28rem),
+    #f6f8fc;
+  color: #0f172a;
 }
 
 button,
@@ -39,6 +56,109 @@ button {
   backdrop-filter: blur(18px);
 }
 
+html[data-theme='dia'] .glass {
+  border-color: rgba(15, 23, 42, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.78));
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.09);
+}
+
+html[data-theme='dia'] header {
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  background: rgba(255, 255, 255, 0.84) !important;
+}
+
+html[data-theme='dia'] [class*="bg-[#0f1117]"],
+html[data-theme='dia'] [class*="bg-[#11141d]"] {
+  background-color: #ffffff !important;
+}
+
+html[data-theme='dia'] [class*="bg-white/"],
+html[data-theme='dia'] [class*="bg-white\\["] {
+  background-color: rgba(15, 23, 42, 0.045) !important;
+}
+
+html[data-theme='dia'] .bg-white\/5,
+html[data-theme='dia'] .bg-white\/8,
+html[data-theme='dia'] .bg-white\/10,
+html[data-theme='dia'] .bg-white\/\[0\.035\],
+html[data-theme='dia'] .bg-white\/\[0\.075\] {
+  background-color: rgba(15, 23, 42, 0.045) !important;
+}
+
+html[data-theme='dia'] .border-white\/8,
+html[data-theme='dia'] .border-white\/10,
+html[data-theme='dia'] .border-white\/20 {
+  border-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+html[data-theme='dia'] .ring-white\/10 {
+  --tw-ring-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+html[data-theme='dia'] .text-white,
+html[data-theme='dia'] .text-slate-100,
+html[data-theme='dia'] .text-slate-200 {
+  color: #0f172a !important;
+}
+
+html[data-theme='dia'] .text-slate-300 {
+  color: #334155 !important;
+}
+
+html[data-theme='dia'] .text-slate-400 {
+  color: #475569 !important;
+}
+
+html[data-theme='dia'] .text-slate-500 {
+  color: #64748b !important;
+}
+
+html[data-theme='dia'] .text-emerald-100,
+html[data-theme='dia'] .text-emerald-200,
+html[data-theme='dia'] .text-emerald-300 {
+  color: #047857 !important;
+}
+
+html[data-theme='dia'] .text-blue-200 {
+  color: #1d4ed8 !important;
+}
+
+html[data-theme='dia'] .text-amber-200,
+html[data-theme='dia'] .text-amber-300 {
+  color: #b45309 !important;
+}
+
+html[data-theme='dia'] .text-red-200,
+html[data-theme='dia'] .text-red-300 {
+  color: #b91c1c !important;
+}
+
+html[data-theme='dia'] input,
+html[data-theme='dia'] select,
+html[data-theme='dia'] textarea {
+  background-color: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.13) !important;
+  color: #0f172a !important;
+}
+
+html[data-theme='dia'] option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+html[data-theme='dia'] table thead {
+  background: rgba(15, 23, 42, 0.045) !important;
+}
+
+html[data-theme='dia'] tr {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme='dia'] .bg-red-500.text-white,
+html[data-theme='dia'] .bg-emerald-400.text-slate-950 {
+  color: #ffffff !important;
+}
+
 .scrollbar-thin::-webkit-scrollbar {
   height: 8px;
   width: 8px;
@@ -54,8 +174,16 @@ button {
   overflow: auto;
 }
 
+html[data-theme='dia'] .gantt-container {
+  background: #ffffff;
+}
+
 .gantt .grid-background {
   fill: #1a1d27;
+}
+
+html[data-theme='dia'] .gantt .grid-background {
+  fill: #ffffff;
 }
 
 .gantt .grid-row {
@@ -66,18 +194,35 @@ button {
   fill: rgba(255, 255, 255, 0.015);
 }
 
+html[data-theme='dia'] .gantt .grid-row:nth-child(even) {
+  fill: rgba(15, 23, 42, 0.025);
+}
+
 .gantt .grid-header {
   fill: #1a1d27;
   stroke: rgba(255, 255, 255, 0.06);
+}
+
+html[data-theme='dia'] .gantt .grid-header {
+  fill: #f1f5f9;
+  stroke: rgba(15, 23, 42, 0.1);
 }
 
 .gantt .row-line {
   stroke: rgba(255, 255, 255, 0.06);
 }
 
+html[data-theme='dia'] .gantt .row-line {
+  stroke: rgba(15, 23, 42, 0.08);
+}
+
 .gantt .tick {
   stroke: rgba(255, 255, 255, 0.08);
   stroke-width: 0.2;
+}
+
+html[data-theme='dia'] .gantt .tick {
+  stroke: rgba(15, 23, 42, 0.12);
 }
 
 .gantt .today-highlight {
@@ -90,10 +235,19 @@ button {
   font-size: 12px;
 }
 
+html[data-theme='dia'] .gantt .upper-text,
+html[data-theme='dia'] .gantt .lower-text {
+  fill: #475569;
+}
+
 .gantt .bar-label {
   fill: #f8fafc;
   font-size: 11px;
   font-weight: 500;
+}
+
+html[data-theme='dia'] .gantt .bar-label {
+  fill: #0f172a;
 }
 
 .gantt .bar-wrapper:hover .bar {
@@ -150,4 +304,10 @@ button {
   background: #111827 !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   color: #f8fafc !important;
+}
+
+html[data-theme='dia'] .popup-wrapper {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #0f172a !important;
 }

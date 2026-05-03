@@ -13,11 +13,11 @@ import { FaseCard } from './FaseCard';
 import { ProyectoEditDrawer } from './ProyectoEditDrawer';
 import { TareasList } from './TareasList';
 
-type Tab = 'fases' | 'gantt' | 'alertas';
+type Tab = 'tareas' | 'fases' | 'gantt' | 'alertas';
 
 export function ProyectoDetail() {
   const { proyectoActivoId, faseActivaId, proyectos, fases, tareas, alertas, setVista } = useAppStore();
-  const [tab, setTab] = useState<Tab>(faseActivaId ? 'fases' : 'fases');
+  const [tab, setTab] = useState<Tab>('tareas');
   const [editing, setEditing] = useState<Proyecto | null>(null);
   const { puedeEditarProyectos } = usePermisos();
   const proyecto = proyectos.find((p) => p.id === proyectoActivoId);
@@ -82,6 +82,7 @@ export function ProyectoDetail() {
 
       <div className="flex flex-wrap gap-2">
         {[
+          ['tareas', ListChecks, 'Todas las tareas'],
           ['fases', LayoutGrid, 'Fases'],
           ['gantt', TimerReset, 'Gantt'],
           ['alertas', AlertTriangle, 'Alertas'],
@@ -102,6 +103,16 @@ export function ProyectoDetail() {
           <button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/8" onClick={() => setVista('proyecto', proyecto.id)}>
             Ver todas las fases
           </button>
+        </div>
+      ) : null}
+
+      {tab === 'tareas' ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-slate-300">
+            <ListChecks className="h-5 w-5 text-emerald-300" />
+            {tareasFase.length} tareas {faseActiva ? 'en esta fase' : 'del proyecto'}
+          </div>
+          <TareasList tareas={tareasFase} />
         </div>
       ) : null}
 

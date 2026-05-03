@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { AjustesView } from './components/ajustes/AjustesView';
 import { InfoClienteView } from './components/clientes/InfoClienteView';
 import { DashboardView } from './components/dashboard/DashboardView';
+import { GanttAdminView } from './components/gantt/GanttAdminView';
 import { Header } from './components/layout/Header';
 import { ProfileSelector } from './components/layout/ProfileSelector';
 import { ProyectoDetail } from './components/proyectos/ProyectoDetail';
@@ -11,11 +12,16 @@ import { MisTareasView } from './components/tareas/MisTareasView';
 import { useAppStore } from './store/useAppStore';
 
 function App() {
-  const { vista, recalcularAlertas } = useAppStore();
+  const { vista, recalcularAlertas, tema } = useAppStore();
 
   useEffect(() => {
     recalcularAlertas();
   }, [recalcularAlertas]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = tema;
+    document.documentElement.style.colorScheme = tema === 'dia' ? 'light' : 'dark';
+  }, [tema]);
 
   return (
     <div className="min-h-screen">
@@ -27,6 +33,7 @@ function App() {
         {vista === 'proyecto' || vista === 'fase' ? <ProyectoDetail /> : null}
         {vista === 'mis_tareas' ? <MisTareasView /> : null}
         {vista === 'info_cliente' ? <InfoClienteView /> : null}
+        {vista === 'gantt_admin' ? <GanttAdminView /> : null}
         {vista === 'reportes' ? <ReportesView /> : null}
         {vista === 'ajustes' ? <AjustesView /> : null}
       </main>

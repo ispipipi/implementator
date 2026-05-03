@@ -6,6 +6,8 @@ export type EstadoSemaforo = 'verde' | 'amarillo' | 'rojo';
 
 export type PerfilApp = 'artbpo_admin' | 'artbpo_ejecutivo';
 
+export type TemaApp = 'dia' | 'noche';
+
 export interface UsuarioActivo {
   id: string;
   nombre: string;
@@ -92,7 +94,7 @@ export interface Alerta {
   creadaEn: string;
 }
 
-export type Vista = 'dashboard' | 'proyectos' | 'proyecto' | 'fase' | 'mis_tareas' | 'info_cliente' | 'reportes' | 'ajustes';
+export type Vista = 'dashboard' | 'proyectos' | 'proyecto' | 'fase' | 'mis_tareas' | 'info_cliente' | 'gantt_admin' | 'reportes' | 'ajustes';
 
 export interface AppState {
   usuarioActivo: UsuarioActivo | null;
@@ -105,10 +107,15 @@ export interface AppState {
   proyectoActivoId: string | null;
   faseActivaId: string | null;
   diasAnticipacionAlerta: number;
+  tema: TemaApp;
   setUsuarioActivo: (u: UsuarioActivo) => void;
   setVista: (v: Vista, proyectoId?: string, faseId?: string) => void;
+  setTema: (tema: TemaApp) => void;
+  alternarTema: () => void;
   actualizarTarea: (id: string, cambios: Partial<Tarea>, usuario: string) => void;
   actualizarFechasGantt: (tareaId: string, inicio: string, fin: string) => void;
+  crearTarea: (t: Omit<Tarea, 'id' | 'actualizadoEn' | 'historial'>) => void;
+  eliminarTarea: (id: string) => void;
   marcarAlertaLeida: (id: string) => void;
   crearProyecto: (p: Omit<Proyecto, 'id' | 'creadoEn'>) => void;
   actualizarProyecto: (id: string, cambios: Partial<Proyecto>) => void;

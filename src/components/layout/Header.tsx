@@ -1,10 +1,10 @@
-import { BarChart3, BriefcaseBusiness, Building2, ListTodo, LogOut, Settings } from 'lucide-react';
+import { BarChart3, BriefcaseBusiness, Building2, CalendarRange, ListTodo, LogOut, Moon, Settings, Sun } from 'lucide-react';
 import { usePermisos } from '../../hooks/usePermisos';
 import { useAppStore } from '../../store/useAppStore';
 import { Breadcrumb } from './Breadcrumb';
 
 export function Header() {
-  const { usuarioActivo, setVista, alertas } = useAppStore();
+  const { usuarioActivo, setVista, alertas, tema, alternarTema } = useAppStore();
   const { puedeAdministrar } = usePermisos();
   const alertasPendientes = alertas.filter((a) => !a.leida).length;
 
@@ -41,10 +41,25 @@ export function Header() {
               {alertasPendientes ? <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white">{alertasPendientes}</span> : null}
             </button>
             {puedeAdministrar ? (
-              <button className="rounded-lg border border-white/10 p-2 text-slate-300 hover:bg-white/8" onClick={() => setVista('ajustes')} aria-label="Ajustes">
-                <Settings className="h-5 w-5" />
-              </button>
+              <>
+                <button className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/8" onClick={() => setVista('gantt_admin')}>
+                  <CalendarRange className="h-4 w-4" />
+                  Gantt admin
+                </button>
+                <button className="rounded-lg border border-white/10 p-2 text-slate-300 hover:bg-white/8" onClick={() => setVista('ajustes')} aria-label="Ajustes">
+                  <Settings className="h-5 w-5" />
+                </button>
+              </>
             ) : null}
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/8"
+              onClick={alternarTema}
+              aria-label={tema === 'noche' ? 'Cambiar a modo dia' : 'Cambiar a modo noche'}
+              title={tema === 'noche' ? 'Modo dia' : 'Modo noche'}
+            >
+              {tema === 'noche' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              <span className="hidden sm:inline">{tema === 'noche' ? 'Dia' : 'Noche'}</span>
+            </button>
             {usuarioActivo ? (
               <button className="flex items-center gap-2 rounded-lg border border-white/10 py-1.5 pl-2 pr-3 text-sm text-slate-200 hover:bg-white/8" onClick={() => useAppStore.setState({ usuarioActivo: null })}>
                 <span className="flex h-7 w-7 items-center justify-center rounded-md text-xs font-semibold" style={{ backgroundColor: `${usuarioActivo.color}26`, color: usuarioActivo.color }}>
