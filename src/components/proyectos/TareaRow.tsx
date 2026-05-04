@@ -1,6 +1,5 @@
-import { Edit3, Lock } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { Tarea } from '../../types';
-import { usePermisos } from '../../hooks/usePermisos';
 import { StatusBadge } from '../ui/StatusBadge';
 
 type Props = {
@@ -9,8 +8,6 @@ type Props = {
 };
 
 export function TareaRow({ tarea, onEdit }: Props) {
-  const { puedeEditarTareas } = usePermisos();
-
   return (
     <tr className="border-b border-white/8 last:border-0">
       <td className="px-4 py-3">
@@ -25,13 +22,12 @@ export function TareaRow({ tarea, onEdit }: Props) {
       <td className="px-4 py-3 text-sm text-slate-400">{tarea.fechaFinPlan}</td>
       <td className="px-4 py-3 text-right">
         <button
-          className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-200 hover:bg-white/8 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-200 hover:bg-white/8"
           onClick={() => onEdit(tarea)}
-          disabled={!puedeEditarTareas}
-          title={puedeEditarTareas ? 'Editar tarea' : 'Solo lectura'}
+          title="Abrir ficha de tarea"
         >
-          {puedeEditarTareas ? <Edit3 className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-          Editar
+          <FileText className="h-4 w-4" />
+          Ficha
         </button>
       </td>
     </tr>
