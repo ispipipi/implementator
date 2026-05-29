@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { PLANTILLA_FASES } from '../data/plantillaFases';
 import { SEED_DATA } from '../data/seedData';
+import { GOOGLE_SHEETS_GANTT_URL } from '../data/googleSheetsSource';
 import { Alerta, AppState, Fase, Tarea } from '../types';
 import { calcPctFase, calcPctProyecto, semaforoProyecto } from '../utils/progressCalc';
 
@@ -70,7 +71,7 @@ export const useAppStore = create<AppState>()(
       faseActivaId: null,
       diasAnticipacionAlerta: 3,
       tema: 'noche',
-      fuenteGoogleSheetsUrl: '',
+      fuenteGoogleSheetsUrl: GOOGLE_SHEETS_GANTT_URL,
 
       setUsuarioActivo: (u) => set({ usuarioActivo: u }),
 
