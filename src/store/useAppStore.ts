@@ -70,6 +70,7 @@ export const useAppStore = create<AppState>()(
       faseActivaId: null,
       diasAnticipacionAlerta: 3,
       tema: 'noche',
+      fuenteGoogleSheetsUrl: '',
 
       setUsuarioActivo: (u) => set({ usuarioActivo: u }),
 
@@ -79,6 +80,45 @@ export const useAppStore = create<AppState>()(
       setTema: (tema) => set({ tema }),
 
       alternarTema: () => set((s) => ({ tema: s.tema === 'noche' ? 'dia' : 'noche' })),
+
+      setFuenteGoogleSheetsUrl: (url) => set({ fuenteGoogleSheetsUrl: url }),
+
+      reemplazarPlanificacionProyecto: (proyectoId, fasesImportadas, tareasImportadas, usuario, fechas) => {
+        const ahora = new Date().toISOString();
+        const fasesConAuditoria = fasesImportadas.map((fase) => ({ ...fase, proyectoId }));
+        const tareasConAuditoria = tareasImportadas.map((tarea) => ({
+          ...tarea,
+          proyectoId,
+          actualizadoEn: ahora,
+          historial: [
+            ...(tarea.historial || []),
+            {
+              fecha: ahora,
+              campo: 'sincronizacion',
+              valorAnterior: '',
+              valorNuevo: 'Google Sheets',
+              usuario,
+            },
+          ].slice(-10),
+        }));
+
+        set((s) => ({
+          proyectos: s.proyectos.map((p) =>
+            p.id === proyectoId
+              ? {
+                  ...p,
+                  fechaInicio: fechas?.fechaInicio ?? p.fechaInicio,
+                  fechaGoLive: fechas?.fechaFin ?? p.fechaGoLive,
+                  observaciones: `${p.observaciones}\nPlanificacion sincronizada desde Google Sheets el ${new Date().toLocaleString('es-CL')}.`,
+                }
+              : p,
+          ),
+          fases: [...s.fases.filter((fase) => fase.proyectoId !== proyectoId), ...fasesConAuditoria],
+          tareas: [...s.tareas.filter((tarea) => tarea.proyectoId !== proyectoId), ...tareasConAuditoria],
+          alertas: s.alertas.filter((alerta) => alerta.proyectoId !== proyectoId),
+        }));
+        get().recalcularAlertas();
+      },
 
       actualizarTarea: (id, cambios, usuario) => {
         const { tareas } = get();
@@ -225,7 +265,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'implementator_state',
-      version: 1,
+      version: 3,
       partialize: (state) => ({
         usuarioActivo: state.usuarioActivo,
         ejecutivos: state.ejecutivos,
@@ -235,6 +275,7 @@ export const useAppStore = create<AppState>()(
         alertas: state.alertas,
         diasAnticipacionAlerta: state.diasAnticipacionAlerta,
         tema: state.tema,
+        fuenteGoogleSheetsUrl: state.fuenteGoogleSheetsUrl,
       }),
     },
   ),

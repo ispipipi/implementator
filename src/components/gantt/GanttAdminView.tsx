@@ -1,9 +1,10 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns';
-import { Lock, Plus, Save, Trash2 } from 'lucide-react';
+import { Cloud, Link2, Lock, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { usePermisos } from '../../hooks/usePermisos';
 import { useAppStore } from '../../store/useAppStore';
 import { EstadoTarea, Tarea } from '../../types';
+import { GoogleSheetPlanPayload, GoogleSheetPlanRow, normalizeGoogleSheetSourceUrl, parseGoogleSheetCsv, parseGoogleSheetPlan } from '../../utils/googleSheetsPlan';
 import { GanttView } from './GanttView';
 import { GlassCard } from '../ui/GlassCard';
 import { StatusBadge } from '../ui/StatusBadge';
@@ -13,9 +14,11 @@ const estados: EstadoTarea[] = ['pendiente', 'en_proceso', 'completada', 'bloque
 const calcDuracion = (inicio: string, fin: string) => Math.max(0, differenceInCalendarDays(parseISO(fin), parseISO(inicio)));
 
 export function GanttAdminView() {
-  const { proyectos, fases, tareas, ejecutivos, actualizarTarea, crearTarea, eliminarTarea, usuarioActivo } = useAppStore();
+  const { proyectos, fases, tareas, ejecutivos, actualizarTarea, crearTarea, eliminarTarea, usuarioActivo, fuenteGoogleSheetsUrl, setFuenteGoogleSheetsUrl, reemplazarPlanificacionProyecto } = useAppStore();
   const { puedeAdministrar } = usePermisos();
   const [proyectoId, setProyectoId] = useState(proyectos[0]?.id ?? '');
+  const [sheetUrl, setSheetUrl] = useState(fuenteGoogleSheetsUrl);
+  const [syncState, setSyncState] = useState<{ loading: boolean; message: string; error: boolean }>({ loading: false, message: '', error: false });
 
   const fasesProyecto = useMemo(() => fases.filter((fase) => fase.proyectoId === proyectoId).sort((a, b) => a.orden - b.orden), [fases, proyectoId]);
   const tareasProyecto = useMemo(() => tareas.filter((tarea) => tarea.proyectoId === proyectoId).sort((a, b) => a.fechaInicioPlan.localeCompare(b.fechaInicioPlan)), [tareas, proyectoId]);
@@ -87,6 +90,52 @@ export function GanttAdminView() {
     }
   };
 
+  const saveSheetUrl = () => {
+    setFuenteGoogleSheetsUrl(sheetUrl.trim());
+    setSyncState({ loading: false, message: 'URL guardada. Ya puedes sincronizar desde Google Sheets.', error: false });
+  };
+
+  const syncFromGoogleSheets = async () => {
+    const url = normalizeGoogleSheetSourceUrl(sheetUrl);
+    if (!url || !proyectoId) {
+      setSyncState({ loading: false, message: 'Pega primero la URL del Google Sheet o Apps Script.', error: true });
+      return;
+    }
+
+    setSyncState({ loading: true, message: 'Leyendo planificacion desde Google Sheets...', error: false });
+    try {
+      const response = await fetch(url, { method: 'GET' });
+      if (!response.ok) throw new Error(`Google Sheets respondio ${response.status}`);
+      const contentType = response.headers.get('content-type') ?? '';
+      const responseText = await response.text();
+      const payload = contentType.includes('application/json') || responseText.trim().startsWith('{') || responseText.trim().startsWith('[')
+        ? (JSON.parse(responseText) as GoogleSheetPlanPayload | GoogleSheetPlanRow[])
+        : parseGoogleSheetCsv(responseText);
+      const imported = parseGoogleSheetPlan(payload, proyectoId);
+
+      if (!imported.tareas.length) {
+        throw new Error('La respuesta no contiene tareas validas. Revisa la pestaña IMPLEMENTATOR_DATA.');
+      }
+
+      reemplazarPlanificacionProyecto(proyectoId, imported.fases, imported.tareas, usuarioActivo?.nombre ?? 'Administrador', {
+        fechaInicio: imported.fechaInicio,
+        fechaFin: imported.fechaFin,
+      });
+      setFuenteGoogleSheetsUrl(sheetUrl.trim());
+      setSyncState({
+        loading: false,
+        message: `Sincronizado: ${imported.fases.length} fases y ${imported.tareas.length} tareas/hitos. Omitidas: ${imported.skipped.length}.`,
+        error: false,
+      });
+    } catch (error) {
+      setSyncState({
+        loading: false,
+        message: error instanceof Error ? error.message : 'No se pudo sincronizar desde Google Sheets.',
+        error: true,
+      });
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -103,6 +152,50 @@ export function GanttAdminView() {
           ))}
         </select>
       </div>
+
+      <GlassCard className="p-5">
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-sm uppercase tracking-[0.18em] text-emerald-300">
+              <Cloud className="h-4 w-4" />
+              Fuente viva
+            </div>
+            <h2 className="text-xl font-semibold text-white">Sincronizar desde Google Sheets</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Pega la URL del Google Sheet compartido o del Apps Script. Al sincronizar, se reemplazan fases y tareas del proyecto seleccionado.
+            </p>
+            <label className="mt-4 grid gap-2 text-sm text-slate-300">
+              URL del Apps Script
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1">
+                  <Link2 className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                  <input
+                    className="w-full rounded-lg border border-white/10 bg-white/5 py-2 pl-9 pr-3 text-sm text-white"
+                    placeholder="https://docs.google.com/spreadsheets/d/.../edit?gid=..."
+                    value={sheetUrl}
+                    onChange={(e) => setSheetUrl(e.target.value)}
+                  />
+                </div>
+                <button type="button" className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/8" onClick={saveSheetUrl}>
+                  Guardar URL
+                </button>
+              </div>
+            </label>
+            {syncState.message ? (
+              <p className={`mt-3 text-sm ${syncState.error ? 'text-red-300' : 'text-emerald-300'}`}>{syncState.message}</p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-wait disabled:opacity-70"
+            onClick={syncFromGoogleSheets}
+            disabled={syncState.loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${syncState.loading ? 'animate-spin' : ''}`} />
+            Sincronizar
+          </button>
+        </div>
+      </GlassCard>
 
       <GanttView tareas={tareasProyecto} />
 

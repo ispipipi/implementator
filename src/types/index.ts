@@ -108,10 +108,13 @@ export interface AppState {
   faseActivaId: string | null;
   diasAnticipacionAlerta: number;
   tema: TemaApp;
+  fuenteGoogleSheetsUrl: string;
   setUsuarioActivo: (u: UsuarioActivo) => void;
   setVista: (v: Vista, proyectoId?: string, faseId?: string) => void;
   setTema: (tema: TemaApp) => void;
   alternarTema: () => void;
+  setFuenteGoogleSheetsUrl: (url: string) => void;
+  reemplazarPlanificacionProyecto: (proyectoId: string, fases: Fase[], tareas: Tarea[], usuario: string, fechas?: { fechaInicio?: string; fechaFin?: string }) => void;
   actualizarTarea: (id: string, cambios: Partial<Tarea>, usuario: string) => void;
   actualizarFechasGantt: (tareaId: string, inicio: string, fin: string) => void;
   crearTarea: (t: Omit<Tarea, 'id' | 'actualizadoEn' | 'historial'>) => void;
