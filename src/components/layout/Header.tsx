@@ -1,5 +1,7 @@
 import { BarChart3, BriefcaseBusiness, Building2, CalendarRange, ListTodo, LogOut, Moon, Settings, Sun } from 'lucide-react';
+import { signOut } from 'firebase/auth';
 import { usePermisos } from '../../hooks/usePermisos';
+import { auth } from '../../services/firebaseClient';
 import { useAppStore } from '../../store/useAppStore';
 import { Breadcrumb } from './Breadcrumb';
 
@@ -61,7 +63,13 @@ export function Header() {
               <span className="hidden sm:inline">{tema === 'noche' ? 'Dia' : 'Noche'}</span>
             </button>
             {usuarioActivo ? (
-              <button className="flex items-center gap-2 rounded-lg border border-white/10 py-1.5 pl-2 pr-3 text-sm text-slate-200 hover:bg-white/8" onClick={() => useAppStore.setState({ usuarioActivo: null })}>
+              <button
+                className="flex items-center gap-2 rounded-lg border border-white/10 py-1.5 pl-2 pr-3 text-sm text-slate-200 hover:bg-white/8"
+                onClick={() => {
+                  if (auth) void signOut(auth);
+                  useAppStore.setState({ usuarioActivo: null });
+                }}
+              >
                 <span className="flex h-7 w-7 items-center justify-center rounded-md text-xs font-semibold" style={{ backgroundColor: `${usuarioActivo.color}26`, color: usuarioActivo.color }}>
                   {usuarioActivo.iniciales}
                 </span>

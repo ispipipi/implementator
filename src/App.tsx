@@ -1,18 +1,19 @@
 import { useEffect } from 'react';
 import { AjustesView } from './components/ajustes/AjustesView';
+import { LoginView } from './components/auth/LoginView';
 import { InfoClienteView } from './components/clientes/InfoClienteView';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { GanttAdminView } from './components/gantt/GanttAdminView';
 import { Header } from './components/layout/Header';
-import { ProfileSelector } from './components/layout/ProfileSelector';
 import { ProyectoDetail } from './components/proyectos/ProyectoDetail';
 import { ProyectosList } from './components/proyectos/ProyectosList';
 import { ReportesView } from './components/reportes/ReportesView';
 import { MisTareasView } from './components/tareas/MisTareasView';
+import { subscribeWorkspaceState } from './services/remoteState';
 import { useAppStore } from './store/useAppStore';
 
 function App() {
-  const { vista, recalcularAlertas, tema } = useAppStore();
+  const { vista, recalcularAlertas, tema, usuarioActivo, aplicarEstadoCompartido } = useAppStore();
 
   useEffect(() => {
     recalcularAlertas();
@@ -23,9 +24,14 @@ function App() {
     document.documentElement.style.colorScheme = tema === 'dia' ? 'light' : 'dark';
   }, [tema]);
 
+  useEffect(() => {
+    if (!usuarioActivo) return undefined;
+    return subscribeWorkspaceState((estado) => aplicarEstadoCompartido(estado), (error) => console.warn(error));
+  }, [aplicarEstadoCompartido, usuarioActivo]);
+
   return (
     <div className="min-h-screen">
-      <ProfileSelector />
+      <LoginView />
       <Header />
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {vista === 'dashboard' ? <DashboardView /> : null}

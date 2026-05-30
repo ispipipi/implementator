@@ -3,11 +3,19 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { PLANTILLA_FASES } from '../data/plantillaFases';
 import { SEED_DATA } from '../data/seedData';
+import { PERFILES_SEED } from '../data/perfiles';
 import { GOOGLE_SHEETS_GANTT_URL } from '../data/googleSheetsSource';
 import { Alerta, AppState, Fase, Tarea } from '../types';
+import { saveWorkspaceState } from '../services/remoteState';
 import { calcPctFase, calcPctProyecto, semaforoProyecto } from '../utils/progressCalc';
 
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+
+const guardarRemoto = (state: AppState, motivo: string) => {
+  void saveWorkspaceState(state, motivo).catch((error) => {
+    console.warn('No se pudo guardar el estado remoto', error);
+  });
+};
 
 const generarPlanProyecto = (proyectoId: string, fechaInicio: string, responsable: string) => {
   const fases: Fase[] = [];
@@ -61,6 +69,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       usuarioActivo: null,
+      perfiles: PERFILES_SEED,
       ejecutivos: SEED_DATA.ejecutivos,
       proyectos: SEED_DATA.proyectos,
       fases: SEED_DATA.fases,
@@ -72,6 +81,7 @@ export const useAppStore = create<AppState>()(
       diasAnticipacionAlerta: 3,
       tema: 'noche',
       fuenteGoogleSheetsUrl: GOOGLE_SHEETS_GANTT_URL,
+      sincronizadoRemotoEn: undefined,
 
       setUsuarioActivo: (u) => set({ usuarioActivo: u }),
 
@@ -82,7 +92,44 @@ export const useAppStore = create<AppState>()(
 
       alternarTema: () => set((s) => ({ tema: s.tema === 'noche' ? 'dia' : 'noche' })),
 
-      setFuenteGoogleSheetsUrl: (url) => set({ fuenteGoogleSheetsUrl: url }),
+      setFuenteGoogleSheetsUrl: (url) => {
+        set({ fuenteGoogleSheetsUrl: url });
+        guardarRemoto(get(), 'fuente_google_sheets');
+      },
+
+      aplicarEstadoCompartido: (estado) =>
+        set({
+          perfiles: estado.perfiles ?? get().perfiles,
+          ejecutivos: estado.ejecutivos ?? get().ejecutivos,
+          proyectos: estado.proyectos ?? get().proyectos,
+          fases: estado.fases ?? get().fases,
+          tareas: estado.tareas ?? get().tareas,
+          alertas: estado.alertas ?? get().alertas,
+          diasAnticipacionAlerta: estado.diasAnticipacionAlerta ?? get().diasAnticipacionAlerta,
+          fuenteGoogleSheetsUrl: estado.fuenteGoogleSheetsUrl ?? get().fuenteGoogleSheetsUrl,
+          sincronizadoRemotoEn: new Date().toISOString(),
+        }),
+
+      crearPerfil: (perfil) => {
+        set((s) => ({ perfiles: [...s.perfiles, { ...perfil, id: makeId('perfil') }] }));
+        guardarRemoto(get(), 'crear_perfil');
+      },
+
+      actualizarPerfil: (id, cambios) => {
+        set((s) => ({
+          perfiles: s.perfiles.map((perfil) => (perfil.id === id ? { ...perfil, ...cambios } : perfil)),
+          usuarioActivo: s.usuarioActivo?.id === id ? { ...s.usuarioActivo, ...cambios } : s.usuarioActivo,
+        }));
+        guardarRemoto(get(), 'actualizar_perfil');
+      },
+
+      eliminarPerfil: (id) => {
+        set((s) => ({
+          perfiles: s.perfiles.filter((perfil) => perfil.id !== id),
+          usuarioActivo: s.usuarioActivo?.id === id ? null : s.usuarioActivo,
+        }));
+        guardarRemoto(get(), 'eliminar_perfil');
+      },
 
       reemplazarPlanificacionProyecto: (proyectoId, fasesImportadas, tareasImportadas, usuario, fechas) => {
         const ahora = new Date().toISOString();
@@ -119,6 +166,7 @@ export const useAppStore = create<AppState>()(
           alertas: s.alertas.filter((alerta) => alerta.proyectoId !== proyectoId),
         }));
         get().recalcularAlertas();
+        guardarRemoto(get(), 'sincronizar_planificacion');
       },
 
       actualizarTarea: (id, cambios, usuario) => {
@@ -147,6 +195,7 @@ export const useAppStore = create<AppState>()(
           ),
         });
         get().recalcularAlertas();
+        guardarRemoto(get(), 'actualizar_tarea');
       },
 
       actualizarFechasGantt: (tareaId, inicio, fin) => {
@@ -158,6 +207,7 @@ export const useAppStore = create<AppState>()(
           ),
         }));
         get().recalcularAlertas();
+        guardarRemoto(get(), 'actualizar_fechas_gantt');
       },
 
       crearTarea: (t) => {
@@ -173,6 +223,7 @@ export const useAppStore = create<AppState>()(
           ],
         }));
         get().recalcularAlertas();
+        guardarRemoto(get(), 'crear_tarea');
       },
 
       eliminarTarea: (id) => {
@@ -181,10 +232,14 @@ export const useAppStore = create<AppState>()(
           alertas: s.alertas.filter((a) => a.tareaId !== id),
         }));
         get().recalcularAlertas();
+        guardarRemoto(get(), 'eliminar_tarea');
       },
 
       marcarAlertaLeida: (id) =>
-        set((s) => ({ alertas: s.alertas.map((a) => (a.id === id ? { ...a, leida: true } : a)) })),
+        {
+          set((s) => ({ alertas: s.alertas.map((a) => (a.id === id ? { ...a, leida: true } : a)) }));
+          guardarRemoto(get(), 'marcar_alerta_leida');
+        },
 
       crearProyecto: (p) => {
         const id = makeId('proyecto');
@@ -196,25 +251,35 @@ export const useAppStore = create<AppState>()(
           tareas: [...s.tareas, ...plan.tareas],
         }));
         get().recalcularAlertas();
+        guardarRemoto(get(), 'crear_proyecto');
       },
 
-      actualizarProyecto: (id, cambios) =>
+      actualizarProyecto: (id, cambios) => {
         set((s) => ({
           proyectos: s.proyectos.map((p) => (p.id === id ? { ...p, ...cambios } : p)),
-        })),
+        }));
+        guardarRemoto(get(), 'actualizar_proyecto');
+      },
 
-      eliminarProyecto: (id) =>
+      eliminarProyecto: (id) => {
         set((s) => ({
           proyectos: s.proyectos.filter((p) => p.id !== id),
           fases: s.fases.filter((f) => f.proyectoId !== id),
           tareas: s.tareas.filter((t) => t.proyectoId !== id),
           alertas: s.alertas.filter((a) => a.proyectoId !== id),
-        })),
+        }));
+        guardarRemoto(get(), 'eliminar_proyecto');
+      },
 
-      crearEjecutivo: (e) => set((s) => ({ ejecutivos: [...s.ejecutivos, { ...e, id: makeId('ejecutivo') }] })),
+      crearEjecutivo: (e) => {
+        set((s) => ({ ejecutivos: [...s.ejecutivos, { ...e, id: makeId('ejecutivo') }] }));
+        guardarRemoto(get(), 'crear_ejecutivo');
+      },
 
-      actualizarEjecutivo: (id, cambios) =>
-        set((s) => ({ ejecutivos: s.ejecutivos.map((e) => (e.id === id ? { ...e, ...cambios } : e)) })),
+      actualizarEjecutivo: (id, cambios) => {
+        set((s) => ({ ejecutivos: s.ejecutivos.map((e) => (e.id === id ? { ...e, ...cambios } : e)) }));
+        guardarRemoto(get(), 'actualizar_ejecutivo');
+      },
 
       recalcularAlertas: () => {
         const { tareas, diasAnticipacionAlerta } = get();
@@ -269,6 +334,7 @@ export const useAppStore = create<AppState>()(
       version: 3,
       partialize: (state) => ({
         usuarioActivo: state.usuarioActivo,
+        perfiles: state.perfiles,
         ejecutivos: state.ejecutivos,
         proyectos: state.proyectos,
         fases: state.fases,

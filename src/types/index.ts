@@ -6,6 +6,8 @@ export type EstadoSemaforo = 'verde' | 'amarillo' | 'rojo';
 
 export type PerfilApp = 'artbpo_admin' | 'artbpo_ejecutivo';
 
+export type PerfilUsuario = PerfilApp | 'tmf' | 'cliente';
+
 export type TemaApp = 'dia' | 'noche';
 
 export interface UsuarioActivo {
@@ -13,8 +15,10 @@ export interface UsuarioActivo {
   nombre: string;
   iniciales: string;
   rol: string;
-  perfil: PerfilApp | 'tmf' | 'cliente';
+  perfil: PerfilUsuario;
   color: string;
+  email?: string;
+  activo?: boolean;
   proyectoClienteId?: string;
 }
 
@@ -98,6 +102,7 @@ export type Vista = 'dashboard' | 'proyectos' | 'proyecto' | 'fase' | 'mis_tarea
 
 export interface AppState {
   usuarioActivo: UsuarioActivo | null;
+  perfiles: UsuarioActivo[];
   ejecutivos: Ejecutivo[];
   proyectos: Proyecto[];
   fases: Fase[];
@@ -109,11 +114,16 @@ export interface AppState {
   diasAnticipacionAlerta: number;
   tema: TemaApp;
   fuenteGoogleSheetsUrl: string;
-  setUsuarioActivo: (u: UsuarioActivo) => void;
+  sincronizadoRemotoEn?: string;
+  setUsuarioActivo: (u: UsuarioActivo | null) => void;
   setVista: (v: Vista, proyectoId?: string, faseId?: string) => void;
   setTema: (tema: TemaApp) => void;
   alternarTema: () => void;
   setFuenteGoogleSheetsUrl: (url: string) => void;
+  aplicarEstadoCompartido: (estado: Partial<Pick<AppState, 'perfiles' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>>) => void;
+  crearPerfil: (perfil: Omit<UsuarioActivo, 'id'>) => void;
+  actualizarPerfil: (id: string, cambios: Partial<UsuarioActivo>) => void;
+  eliminarPerfil: (id: string) => void;
   reemplazarPlanificacionProyecto: (proyectoId: string, fases: Fase[], tareas: Tarea[], usuario: string, fechas?: { fechaInicio?: string; fechaFin?: string }) => void;
   actualizarTarea: (id: string, cambios: Partial<Tarea>, usuario: string) => void;
   actualizarFechasGantt: (tareaId: string, inicio: string, fin: string) => void;
