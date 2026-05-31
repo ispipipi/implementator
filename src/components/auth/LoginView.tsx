@@ -4,7 +4,7 @@ import { LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { UsuarioActivo } from '../../types';
 import { auth, firebaseMissingMessage, firebaseReady } from '../../services/firebaseClient';
-import { bootstrapAdminProfile, ensureWorkspaceState, loadWorkspaceState } from '../../services/remoteState';
+import { ensureWorkspaceState, loadWorkspaceState } from '../../services/remoteState';
 import { enviarRecuperacionPassword } from '../../services/userAccess';
 import { GlassCard } from '../ui/GlassCard';
 
@@ -42,22 +42,7 @@ export function LoginView() {
 
         const emailUsuario = normalizarEmail(firebaseUser.email);
         const perfilesDisponibles = estadoRemoto?.perfiles ?? useAppStore.getState().perfiles;
-        let perfil = buscarPerfil(perfilesDisponibles, emailUsuario);
-
-        const hayEmailsConfigurados = perfilesDisponibles.some((p) => normalizarEmail(p.email));
-        if (!perfil && !hayEmailsConfigurados) {
-          perfil = {
-            ...perfilesDisponibles[0],
-            id: firebaseUser.uid,
-            nombre: firebaseUser.displayName || firebaseUser.email || 'Administrador',
-            iniciales: (firebaseUser.displayName || firebaseUser.email || 'AD').slice(0, 2).toUpperCase(),
-            rol: 'Administrador',
-            perfil: 'artbpo_admin',
-            email: emailUsuario,
-            activo: true,
-          };
-          await bootstrapAdminProfile(useAppStore.getState(), perfil);
-        }
+        const perfil = buscarPerfil(perfilesDisponibles, emailUsuario);
 
         if (!perfil) {
           setMensaje('Tu usuario existe en Firebase, pero aun no tiene perfil asignado en IMPLEMENTATOR.');
@@ -182,11 +167,6 @@ export function LoginView() {
           </form>
         )}
 
-        {perfiles.some((perfil) => perfil.email) ? null : (
-          <p className="mt-4 text-xs leading-relaxed text-slate-500">
-            Primer ingreso: si aun no hay emails configurados, el primer usuario autenticado queda como administrador inicial.
-          </p>
-        )}
       </GlassCard>
     </div>
   );

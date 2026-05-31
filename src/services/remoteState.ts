@@ -1,5 +1,5 @@
 import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
-import { AppState, UsuarioActivo } from '../types';
+import { AppState } from '../types';
 import { db } from './firebaseClient';
 
 type SharedState = Pick<
@@ -57,22 +57,6 @@ export async function saveWorkspaceState(state: AppState, motivo: string) {
       updatedAt: serverTimestamp(),
       updatedBy: state.usuarioActivo?.email ?? state.usuarioActivo?.nombre ?? 'Sistema',
       motivo,
-    },
-    { merge: true },
-  );
-}
-
-export async function bootstrapAdminProfile(state: AppState, profile: UsuarioActivo) {
-  const ref = workspaceRef();
-  if (!ref) return;
-  const nextProfiles = [profile, ...state.perfiles.filter((p) => p.id !== profile.id)];
-  await setDoc(
-    ref,
-    {
-      ...toSharedState({ ...state, perfiles: nextProfiles }),
-      updatedAt: serverTimestamp(),
-      updatedBy: profile.email ?? profile.nombre,
-      motivo: 'bootstrap_admin',
     },
     { merge: true },
   );
