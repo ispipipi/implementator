@@ -1,15 +1,51 @@
-import { AlertTriangle, ArrowRight, BarChart3, CheckCircle2, Clock3, FolderKanban, ListChecks } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, BarChart3, CheckCircle2, Clock3, FolderKanban, Gauge, ListChecks } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useProyectosVisibles } from '../../hooks/usePermisos';
 import { useAppStore, calcPctFase, calcPctProyecto, semaforoProyecto } from '../../store/useAppStore';
+import { Alerta, Fase, Proyecto, Tarea } from '../../types';
 import { GlassCard } from '../ui/GlassCard';
 import { ProgressBar } from '../ui/ProgressBar';
 import { ProgressRing } from '../ui/ProgressRing';
+import { StatusBadge } from '../ui/StatusBadge';
 import { TrafficLightOrb } from '../ui/TrafficLightOrb';
 import { AlertPanel } from '../layout/AlertPanel';
+import { TareaEditDrawer } from '../proyectos/TareaEditDrawer';
+
+type KpiDetalle = 'proyectos' | 'completadas' | 'en_proceso' | 'alertas' | 'avance';
+
+type KpiStat = {
+  id: KpiDetalle;
+  label: string;
+  value: number;
+  icon: typeof FolderKanban;
+};
+
+const kpiTitles: Record<KpiDetalle, string> = {
+  proyectos: 'Proyectos activos',
+  completadas: 'Tareas completadas',
+  en_proceso: 'Tareas en proceso',
+  alertas: 'Alertas abiertas',
+  avance: 'Avance promedio',
+};
+
+const kpiDescriptions: Record<KpiDetalle, string> = {
+  proyectos: 'Drill down de proyectos activos hacia fases y tareas.',
+  completadas: 'Tareas terminadas agrupadas por proyecto y fase.',
+  en_proceso: 'Tareas actualmente en ejecucion agrupadas por proyecto y fase.',
+  alertas: 'Alertas abiertas agrupadas por proyecto, fase y tarea asociada.',
+  avance: 'Avance del portafolio por proyecto, fase y tarea.',
+};
+
+const sortFases = (a: Fase, b: Fase) => a.orden - b.orden;
+const sortTareas = (a: Tarea, b: Tarea) => a.fechaInicioPlan.localeCompare(b.fechaInicioPlan);
 
 export function DashboardView() {
   const proyectos = useProyectosVisibles();
   const { tareas, fases, alertas, setVista, usuarioActivo } = useAppStore();
+  const [kpiActivo, setKpiActivo] = useState<KpiDetalle | null>(null);
+  const [proyectoDrillId, setProyectoDrillId] = useState<string | null>(null);
+  const [faseDrillId, setFaseDrillId] = useState<string | null>(null);
+  const [tareaSeleccionada, setTareaSeleccionada] = useState<Tarea | null>(null);
 
   if (usuarioActivo?.perfil === 'cliente') {
     const proyectoCliente = proyectos.find((p) => p.id === usuarioActivo.proyectoClienteId) ?? proyectos[0];
@@ -120,50 +156,90 @@ export function DashboardView() {
       ? 'amarillo'
       : 'verde';
 
-  const stats = [
-    { label: 'Proyectos activos', value: proyectos.filter((p) => p.estado === 'activo').length, icon: FolderKanban },
-    { label: 'Tareas completadas', value: tareasVisibles.filter((t) => t.estado === 'completada').length, icon: CheckCircle2 },
-    { label: 'En proceso', value: tareasVisibles.filter((t) => t.estado === 'en_proceso').length, icon: Clock3 },
-    { label: 'Alertas abiertas', value: alertas.filter((a) => !a.leida).length, icon: AlertTriangle },
+  const alertasVisibles = alertas.filter((alerta) => proyectos.some((p) => p.id === alerta.proyectoId));
+  const alertasAbiertas = alertasVisibles.filter((a) => !a.leida);
+  const proyectosActivos = proyectos.filter((p) => p.estado === 'activo');
+
+  const stats: KpiStat[] = [
+    { id: 'proyectos', label: 'Proyectos activos', value: proyectosActivos.length, icon: FolderKanban },
+    { id: 'completadas', label: 'Tareas completadas', value: tareasVisibles.filter((t) => t.estado === 'completada').length, icon: CheckCircle2 },
+    { id: 'en_proceso', label: 'En proceso', value: tareasVisibles.filter((t) => t.estado === 'en_proceso').length, icon: Clock3 },
+    { id: 'alertas', label: 'Alertas abiertas', value: alertasAbiertas.length, icon: AlertTriangle },
   ];
+
+  const abrirKpi = (id: KpiDetalle) => {
+    setKpiActivo(id);
+    setProyectoDrillId(null);
+    setFaseDrillId(null);
+    setTareaSeleccionada(null);
+  };
+
+  const cerrarKpi = () => {
+    setKpiActivo(null);
+    setProyectoDrillId(null);
+    setFaseDrillId(null);
+    setTareaSeleccionada(null);
+  };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <section className="space-y-6">
-        <GlassCard className="overflow-hidden p-6 sm:p-8">
-          <div className="grid gap-8 lg:grid-cols-[1fr_220px] lg:items-center">
-            <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">Monitoreo de implementaciones</p>
-              <h1 className="mt-3 max-w-3xl text-4xl font-semibold tracking-normal text-white sm:text-5xl">
-                IMPLEMENTATOR controla avance, riesgos y go live en una sola vista.
-              </h1>
-              <p className="mt-4 max-w-2xl text-slate-400">
-                artBPO puede navegar desde el portafolio hasta cada fase y tarea, con alertas calculadas desde las fechas planificadas.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-300" onClick={() => setVista('proyectos')}>
-                  Ver proyectos
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-                <button className="rounded-lg border border-white/10 px-4 py-2 font-medium text-slate-200 hover:bg-white/8" onClick={() => setVista('reportes')}>
-                  Abrir reportes
-                </button>
+        {kpiActivo ? (
+          <DashboardKpiDetalle
+            alertas={alertasAbiertas}
+            fases={fases}
+            kpi={kpiActivo}
+            onBack={cerrarKpi}
+            onOpenProject={(id) => {
+              setProyectoDrillId(id);
+              setFaseDrillId(null);
+            }}
+            onOpenTask={setTareaSeleccionada}
+            onSelectPhase={setFaseDrillId}
+            phaseId={faseDrillId}
+            projectId={proyectoDrillId}
+            proyectos={proyectos}
+            proyectosActivos={proyectosActivos}
+            tareas={tareasVisibles}
+          />
+        ) : (
+          <GlassCard className="overflow-hidden p-6 sm:p-8">
+            <div className="grid gap-8 lg:grid-cols-[1fr_220px] lg:items-center">
+              <div>
+                <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">Monitoreo de implementaciones</p>
+                <h1 className="mt-3 max-w-3xl text-4xl font-semibold tracking-normal text-white sm:text-5xl">
+                  IMPLEMENTATOR controla avance, riesgos y go live en una sola vista.
+                </h1>
+                <p className="mt-4 max-w-2xl text-slate-400">
+                  artBPO puede navegar desde el portafolio hasta cada fase y tarea, con alertas calculadas desde las fechas planificadas.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-300" onClick={() => setVista('proyectos')}>
+                    Ver proyectos
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <button className="rounded-lg border border-white/10 px-4 py-2 font-medium text-slate-200 hover:bg-white/8" onClick={() => setVista('reportes')}>
+                    Abrir reportes
+                  </button>
+                </div>
               </div>
+              <button className="flex flex-col items-center gap-5 rounded-lg p-3 text-center transition hover:bg-white/[0.04] focus:outline-none focus:ring-2 focus:ring-emerald-300/40" onClick={() => abrirKpi('avance')}>
+                <TrafficLightOrb estado={semaforo} size="lg" />
+                <ProgressRing value={promedio} size={116} />
+                <p className="text-center text-sm text-slate-400">Avance promedio del portafolio visible</p>
+              </button>
             </div>
-            <div className="flex flex-col items-center gap-5">
-              <TrafficLightOrb estado={semaforo} size="lg" />
-              <ProgressRing value={promedio} size={116} />
-              <p className="text-center text-sm text-slate-400">Avance promedio del portafolio visible</p>
-            </div>
-          </div>
-        </GlassCard>
+          </GlassCard>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((stat) => (
-            <GlassCard key={stat.label} className="p-5">
-              <stat.icon className="mb-4 h-5 w-5 text-slate-400" />
-              <p className="text-3xl font-semibold text-white">{stat.value}</p>
-              <p className="mt-1 text-sm text-slate-400">{stat.label}</p>
+            <GlassCard key={stat.label} interactive className={`p-0 ${kpiActivo === stat.id ? 'border-emerald-300/35 bg-emerald-300/10' : ''}`}>
+              <button className="h-full w-full p-5 text-left" onClick={() => abrirKpi(stat.id)}>
+                <stat.icon className={`mb-4 h-5 w-5 ${kpiActivo === stat.id ? 'text-emerald-200' : 'text-slate-400'}`} />
+                <p className="text-3xl font-semibold text-white">{stat.value}</p>
+                <p className="mt-1 text-sm text-slate-400">{stat.label}</p>
+              </button>
             </GlassCard>
           ))}
         </div>
@@ -190,6 +266,230 @@ export function DashboardView() {
       </section>
 
       <AlertPanel />
+      <TareaEditDrawer tarea={tareaSeleccionada} onClose={() => setTareaSeleccionada(null)} />
+    </div>
+  );
+}
+
+function DashboardKpiDetalle({
+  alertas,
+  fases,
+  kpi,
+  onBack,
+  onOpenProject,
+  onOpenTask,
+  onSelectPhase,
+  phaseId,
+  projectId,
+  proyectos,
+  proyectosActivos,
+  tareas,
+}: {
+  alertas: Alerta[];
+  fases: Fase[];
+  kpi: KpiDetalle;
+  onBack: () => void;
+  onOpenProject: (id: string | null) => void;
+  onOpenTask: (tarea: Tarea) => void;
+  onSelectPhase: (id: string | null) => void;
+  phaseId: string | null;
+  projectId: string | null;
+  proyectos: Proyecto[];
+  proyectosActivos: Proyecto[];
+  tareas: Tarea[];
+}) {
+  const tareasKpi = useMemo(() => {
+    if (kpi === 'completadas') return tareas.filter((tarea) => tarea.estado === 'completada');
+    if (kpi === 'en_proceso') return tareas.filter((tarea) => tarea.estado === 'en_proceso');
+    return tareas;
+  }, [kpi, tareas]);
+
+  const proyectosKpi = useMemo(() => {
+    if (kpi === 'proyectos') return proyectosActivos;
+    if (kpi === 'alertas') {
+      const ids = new Set(alertas.map((alerta) => alerta.proyectoId));
+      return proyectos.filter((proyecto) => ids.has(proyecto.id));
+    }
+
+    const ids = new Set(tareasKpi.map((tarea) => tarea.proyectoId));
+    return proyectos.filter((proyecto) => ids.has(proyecto.id));
+  }, [alertas, kpi, proyectos, proyectosActivos, tareasKpi]);
+
+  const proyecto = proyectosKpi.find((p) => p.id === projectId) ?? null;
+  const fasesProyecto = proyecto
+    ? fases.filter((fase) => fase.proyectoId === proyecto.id).sort(sortFases)
+    : [];
+  const fasesConDatos = fasesProyecto.filter((fase) => {
+    if (kpi === 'proyectos' || kpi === 'avance') return true;
+
+    if (kpi === 'alertas') {
+      return alertas.some((alerta) => tareas.find((tarea) => tarea.id === alerta.tareaId)?.faseId === fase.id);
+    }
+
+    return tareasKpi.some((tarea) => tarea.faseId === fase.id);
+  });
+  const fase = fasesConDatos.find((item) => item.id === phaseId) ?? null;
+  const tareasFase = fase
+    ? tareasKpi.filter((tarea) => tarea.faseId === fase.id).sort(sortTareas)
+    : [];
+  const alertasFase = fase
+    ? alertas.filter((alerta) => tareas.find((tarea) => tarea.id === alerta.tareaId)?.faseId === fase.id)
+    : [];
+
+  const contadorProyecto = (target: Proyecto) => {
+    if (kpi === 'proyectos') return `${fases.filter((faseItem) => faseItem.proyectoId === target.id).length} fase(s)`;
+    if (kpi === 'alertas') return `${alertas.filter((alerta) => alerta.proyectoId === target.id).length} alerta(s)`;
+    return `${tareasKpi.filter((tarea) => tarea.proyectoId === target.id).length} tarea(s)`;
+  };
+
+  return (
+    <GlassCard className="min-h-[420px] overflow-hidden p-5 sm:p-6">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <button className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+            Volver al resumen
+          </button>
+          <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">Detalle KPI</p>
+          <h2 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">{kpiTitles[kpi]}</h2>
+          <p className="mt-2 max-w-2xl text-sm text-slate-400">{kpiDescriptions[kpi]}</p>
+        </div>
+        <div className="rounded-lg border border-white/10 bg-white/[0.035] px-4 py-3 text-right">
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Nivel actual</p>
+          <p className="mt-1 font-semibold text-white">{fase ? 'Tareas' : proyecto ? 'Fases' : 'Proyectos'}</p>
+        </div>
+      </div>
+
+      {proyecto ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+          <button className="rounded-lg border border-white/10 px-3 py-2 text-slate-300 hover:bg-white/8" onClick={() => onOpenProject(null)}>
+            Proyectos
+          </button>
+          <span className="text-slate-600">/</span>
+          <button className="rounded-lg border border-white/10 px-3 py-2 text-slate-300 hover:bg-white/8" onClick={() => onSelectPhase(null)}>
+            {proyecto.nombre}
+          </button>
+          {fase ? (
+            <>
+              <span className="text-slate-600">/</span>
+              <span className="rounded-lg bg-emerald-300/12 px-3 py-2 text-emerald-100">{fase.codigo}</span>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!proyecto ? (
+        <div className="grid gap-3">
+          {proyectosKpi.length ? proyectosKpi.map((item) => (
+            <button key={item.id} className="rounded-lg border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/35 hover:bg-white/8" onClick={() => onOpenProject(item.id)}>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <h3 className="truncate font-semibold text-white">{item.nombre}</h3>
+                  <p className="mt-1 text-sm text-slate-500">{item.sistemaOrigen} · Go live {item.fechaGoLive}</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="hidden min-w-36 sm:block">
+                    <div className="mb-1 flex justify-between text-xs">
+                      <span className="text-slate-500">Avance</span>
+                      <span className="font-semibold text-white">{calcPctProyecto(item.id, tareas)}%</span>
+                    </div>
+                    <ProgressBar value={calcPctProyecto(item.id, tareas)} tone={calcPctProyecto(item.id, tareas) === 100 ? 'emerald' : 'blue'} />
+                  </div>
+                  <span className="rounded-full bg-white/8 px-3 py-1 text-sm text-slate-300">{contadorProyecto(item)}</span>
+                  <ArrowRight className="h-5 w-5 text-slate-500" />
+                </div>
+              </div>
+            </button>
+          )) : (
+            <EmptyKpiState text="No hay datos para este KPI." />
+          )}
+        </div>
+      ) : null}
+
+      {proyecto && !fase ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {fasesConDatos.length ? fasesConDatos.map((item) => {
+            const alertasFaseItem = alertas.filter((alerta) => tareas.find((tarea) => tarea.id === alerta.tareaId)?.faseId === item.id);
+            const tareasFaseItem = tareasKpi.filter((tarea) => tarea.faseId === item.id);
+            const count = kpi === 'alertas' ? alertasFaseItem.length : tareasFaseItem.length;
+            const pct = calcPctFase(item.id, tareas);
+
+            return (
+              <button key={item.id} className="rounded-lg border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/35 hover:bg-white/8" onClick={() => onSelectPhase(item.id)}>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <span className="rounded-md bg-white/8 px-2 py-1 text-xs font-semibold text-emerald-200">{item.codigo}</span>
+                    <h3 className="mt-3 font-semibold text-white">{item.nombre}</h3>
+                    <p className="mt-1 text-sm text-slate-500">{count} {kpi === 'alertas' ? 'alerta(s)' : 'tarea(s)'}</p>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-slate-500" />
+                </div>
+                <div className="mt-4 mb-2 flex items-center justify-between text-sm">
+                  <span className="text-slate-400">Cumplimiento fase</span>
+                  <span className="font-semibold text-white">{pct}%</span>
+                </div>
+                <ProgressBar value={pct} tone={pct === 100 ? 'emerald' : 'blue'} />
+              </button>
+            );
+          }) : (
+            <EmptyKpiState text="Este proyecto no tiene fases asociadas al KPI seleccionado." />
+          )}
+        </div>
+      ) : null}
+
+      {proyecto && fase ? (
+        <div className="grid gap-3">
+          {(kpi === 'alertas' ? alertasFase : tareasFase).length ? (
+            kpi === 'alertas' ? (
+              alertasFase.map((alerta) => {
+                const tarea = tareas.find((item) => item.id === alerta.tareaId);
+                return (
+                  <button key={alerta.id} className="rounded-lg border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/35 hover:bg-white/8" onClick={() => tarea && onOpenTask(tarea)}>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <span className="rounded-full bg-amber-400/12 px-2.5 py-1 text-xs font-medium text-amber-100">{alerta.tipo.replace('_', ' ')}</span>
+                        <h3 className="mt-3 font-semibold text-white">{alerta.mensaje}</h3>
+                        <p className="mt-1 text-sm text-slate-500">{tarea?.nombre ?? 'Tarea no encontrada'}</p>
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-slate-500" />
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              tareasFase.map((tarea) => (
+                <button key={tarea.id} className="rounded-lg border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/35 hover:bg-white/8" onClick={() => onOpenTask(tarea)}>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <StatusBadge estado={tarea.estado} ping={tarea.estado === 'bloqueada'} />
+                        {tarea.esMilestone ? <span className="rounded-full bg-amber-400/12 px-2.5 py-1 text-xs font-medium text-amber-100">Milestone</span> : null}
+                      </div>
+                      <h3 className="font-semibold text-white">{tarea.nombre}</h3>
+                      <p className="mt-1 text-sm text-slate-500">Responsable: {tarea.responsable}</p>
+                    </div>
+                    <div className="text-right text-sm text-slate-400">
+                      <p>{tarea.fechaInicioPlan}</p>
+                      <p>{tarea.fechaFinPlan}</p>
+                    </div>
+                  </div>
+                </button>
+              ))
+            )
+          ) : (
+            <EmptyKpiState text="No hay tareas para esta fase." />
+          )}
+        </div>
+      ) : null}
+    </GlassCard>
+  );
+}
+
+function EmptyKpiState({ text }: { text: string }) {
+  return (
+    <div className="rounded-lg border border-dashed border-white/10 p-6 text-center text-sm text-slate-500">
+      <Gauge className="mx-auto mb-3 h-5 w-5 text-slate-600" />
+      {text}
     </div>
   );
 }
