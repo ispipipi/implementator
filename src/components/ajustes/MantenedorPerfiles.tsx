@@ -117,7 +117,7 @@ export function MantenedorPerfiles() {
       ) : null}
 
       <p className="mt-3 text-xs leading-relaxed text-slate-500">
-        Al crear un perfil, IMPLEMENTATOR crea el usuario en Firebase con una clave temporal y envia un correo para que defina su password. Si el usuario ya existe, solo se reenvia el correo.
+        Al crear un perfil, IMPLEMENTATOR crea el usuario en Firebase con una clave temporal y envia un correo para que defina su contrasena. Si el usuario ya existe, se envia un correo para crear una nueva.
       </p>
 
       <div className="mt-5 grid gap-3">

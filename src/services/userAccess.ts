@@ -11,6 +11,15 @@ const SECONDARY_APP_NAME = 'implementator-user-provisioning';
 
 const normalizarEmail = (email: string) => email.trim().toLowerCase();
 
+const actionCodeSettings = () => {
+  if (typeof window === 'undefined') return undefined;
+
+  return {
+    url: new URL(import.meta.env.BASE_URL || '/', window.location.origin).toString(),
+    handleCodeInApp: false,
+  };
+};
+
 const generarPasswordTemporal = () => {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
   const values = new Uint32Array(24);
@@ -31,9 +40,11 @@ const mensajeFirebase = (error: unknown) => {
   if (!(error instanceof FirebaseError)) return 'No se pudo enviar el correo de acceso.';
 
   if (error.code === 'auth/invalid-email') return 'El email ingresado no es valido.';
-  if (error.code === 'auth/operation-not-allowed') return 'Email/password no esta habilitado en Firebase Auth.';
+  if (error.code === 'auth/user-not-found') return 'Ese email aun no tiene usuario creado en Firebase. Pide al administrador que cree el perfil y envie el correo de acceso.';
+  if (error.code === 'auth/operation-not-allowed') return 'Email/contrasena no esta habilitado en Firebase Auth.';
   if (error.code === 'auth/too-many-requests') return 'Firebase bloqueo temporalmente el envio por muchos intentos. Prueba nuevamente en unos minutos.';
   if (error.code === 'auth/network-request-failed') return 'No hay conexion con Firebase para enviar el correo.';
+  if (error.code === 'auth/unauthorized-continue-uri') return 'El dominio de retorno no esta autorizado en Firebase Auth.';
 
   return 'No se pudo enviar el correo de acceso. Revisa que el usuario exista y que Firebase Auth este activo.';
 };
@@ -57,12 +68,20 @@ export async function enviarCorreoAccesoPerfil(email: string) {
   }
 
   try {
-    await sendPasswordResetEmail(provisioningAuth, emailNormalizado);
+    await sendPasswordResetEmail(provisioningAuth, emailNormalizado, actionCodeSettings());
     await signOut(provisioningAuth);
     return usuarioCreado
-      ? 'Usuario creado en Firebase y correo enviado para definir password.'
-      : 'Correo enviado para definir o recuperar password.';
+      ? 'Usuario creado en Firebase y correo enviado para definir contrasena.'
+      : 'Correo enviado para definir una nueva contrasena.';
   } catch (error) {
+    if (error instanceof FirebaseError && error.code === 'auth/unauthorized-continue-uri') {
+      await sendPasswordResetEmail(provisioningAuth, emailNormalizado);
+      await signOut(provisioningAuth);
+      return usuarioCreado
+        ? 'Usuario creado en Firebase y correo enviado para definir contrasena.'
+        : 'Correo enviado para definir o recuperar contrasena.';
+    }
+
     await signOut(provisioningAuth);
     throw new Error(
       usuarioCreado
@@ -75,12 +94,17 @@ export async function enviarCorreoAccesoPerfil(email: string) {
 export async function enviarRecuperacionPassword(email: string) {
   const emailNormalizado = normalizarEmail(email);
 
-  if (!emailNormalizado) throw new Error('Ingresa tu email para recuperar el password.');
+  if (!emailNormalizado) throw new Error('Ingresa tu email para crear una nueva contrasena.');
   if (!auth) throw new Error('Firebase Auth no esta configurado.');
 
   try {
-    await sendPasswordResetEmail(auth, emailNormalizado);
+    await sendPasswordResetEmail(auth, emailNormalizado, actionCodeSettings());
   } catch (error) {
+    if (error instanceof FirebaseError && error.code === 'auth/unauthorized-continue-uri') {
+      await sendPasswordResetEmail(auth, emailNormalizado);
+      return;
+    }
+
     throw new Error(mensajeFirebase(error));
   }
 }

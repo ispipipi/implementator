@@ -71,7 +71,7 @@ export function LoginView() {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch {
-      setMensaje('Email o password incorrecto, o el usuario aun no existe en Firebase.');
+      setMensaje('Email o contrasena incorrecta, o el usuario aun no existe en Firebase.');
     } finally {
       setCargando(false);
     }
@@ -82,7 +82,7 @@ export function LoginView() {
     setTipoMensaje('error');
 
     if (!email.trim()) {
-      setMensaje('Ingresa tu email y luego presiona recuperar password.');
+      setMensaje('Ingresa tu email y luego presiona crear nueva contrasena.');
       return;
     }
 
@@ -90,7 +90,7 @@ export function LoginView() {
     try {
       await enviarRecuperacionPassword(email);
       setTipoMensaje('ok');
-      setMensaje('Te enviamos un correo para crear o recuperar tu password.');
+      setMensaje('Te enviamos un correo para crear una nueva contrasena. Por seguridad no se puede enviar la contrasena actual.');
     } catch (error) {
       setMensaje(error instanceof Error ? error.message : 'No se pudo enviar el correo de recuperacion.');
     } finally {
@@ -107,7 +107,7 @@ export function LoginView() {
           </div>
           <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">IMPLEMENTATOR</p>
           <h1 className="mt-2 text-2xl font-semibold text-white">Ingreso seguro</h1>
-          <p className="mt-2 text-sm text-slate-400">Accede con tu email y password asignado.</p>
+          <p className="mt-2 text-sm text-slate-400">Accede con tu email y contrasena asignada.</p>
         </div>
 
         {!firebaseReady ? (
@@ -128,7 +128,7 @@ export function LoginView() {
               />
             </label>
             <label className="block text-sm text-slate-300">
-              Password
+              Contrasena
               <input
                 className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white outline-none focus:border-emerald-300/50"
                 type="password"
@@ -162,7 +162,7 @@ export function LoginView() {
               disabled={recuperando}
               onClick={recuperarPassword}
             >
-              {recuperando ? 'Enviando correo...' : 'Recuperar password'}
+              {recuperando ? 'Enviando correo...' : 'Crear nueva contrasena'}
             </button>
           </form>
         )}
