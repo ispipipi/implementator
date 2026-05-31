@@ -1,0 +1,86 @@
+import { FirebaseError, initializeApp, getApps } from 'firebase/app';
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  sendPasswordResetEmail,
+  signOut,
+} from 'firebase/auth';
+import { auth, firebaseApp } from './firebaseClient';
+
+const SECONDARY_APP_NAME = 'implementator-user-provisioning';
+
+const normalizarEmail = (email: string) => email.trim().toLowerCase();
+
+const generarPasswordTemporal = () => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  const values = new Uint32Array(24);
+  crypto.getRandomValues(values);
+  return Array.from(values, (value) => alphabet[value % alphabet.length]).join('');
+};
+
+const getProvisioningAuth = () => {
+  if (!firebaseApp) return null;
+  const app =
+    getApps().find((candidate) => candidate.name === SECONDARY_APP_NAME) ??
+    initializeApp(firebaseApp.options, SECONDARY_APP_NAME);
+
+  return getAuth(app);
+};
+
+const mensajeFirebase = (error: unknown) => {
+  if (!(error instanceof FirebaseError)) return 'No se pudo enviar el correo de acceso.';
+
+  if (error.code === 'auth/invalid-email') return 'El email ingresado no es valido.';
+  if (error.code === 'auth/operation-not-allowed') return 'Email/password no esta habilitado en Firebase Auth.';
+  if (error.code === 'auth/too-many-requests') return 'Firebase bloqueo temporalmente el envio por muchos intentos. Prueba nuevamente en unos minutos.';
+  if (error.code === 'auth/network-request-failed') return 'No hay conexion con Firebase para enviar el correo.';
+
+  return 'No se pudo enviar el correo de acceso. Revisa que el usuario exista y que Firebase Auth este activo.';
+};
+
+export async function enviarCorreoAccesoPerfil(email: string) {
+  const emailNormalizado = normalizarEmail(email);
+  const provisioningAuth = getProvisioningAuth();
+
+  if (!emailNormalizado) throw new Error('Ingresa un email para enviar el correo de acceso.');
+  if (!provisioningAuth) throw new Error('Firebase Auth no esta configurado.');
+
+  let usuarioCreado = false;
+
+  try {
+    await createUserWithEmailAndPassword(provisioningAuth, emailNormalizado, generarPasswordTemporal());
+    usuarioCreado = true;
+  } catch (error) {
+    if (!(error instanceof FirebaseError) || error.code !== 'auth/email-already-in-use') {
+      throw new Error(mensajeFirebase(error));
+    }
+  }
+
+  try {
+    await sendPasswordResetEmail(provisioningAuth, emailNormalizado);
+    await signOut(provisioningAuth);
+    return usuarioCreado
+      ? 'Usuario creado en Firebase y correo enviado para definir password.'
+      : 'Correo enviado para definir o recuperar password.';
+  } catch (error) {
+    await signOut(provisioningAuth);
+    throw new Error(
+      usuarioCreado
+        ? `El usuario fue creado, pero no se pudo enviar el correo. ${mensajeFirebase(error)}`
+        : mensajeFirebase(error),
+    );
+  }
+}
+
+export async function enviarRecuperacionPassword(email: string) {
+  const emailNormalizado = normalizarEmail(email);
+
+  if (!emailNormalizado) throw new Error('Ingresa tu email para recuperar el password.');
+  if (!auth) throw new Error('Firebase Auth no esta configurado.');
+
+  try {
+    await sendPasswordResetEmail(auth, emailNormalizado);
+  } catch (error) {
+    throw new Error(mensajeFirebase(error));
+  }
+}

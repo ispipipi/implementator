@@ -5,6 +5,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { UsuarioActivo } from '../../types';
 import { auth, firebaseMissingMessage, firebaseReady } from '../../services/firebaseClient';
 import { bootstrapAdminProfile, ensureWorkspaceState, loadWorkspaceState } from '../../services/remoteState';
+import { enviarRecuperacionPassword } from '../../services/userAccess';
 import { GlassCard } from '../ui/GlassCard';
 
 const normalizarEmail = (email?: string | null) => (email ?? '').trim().toLowerCase();
@@ -17,7 +18,9 @@ export function LoginView() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [cargando, setCargando] = useState(false);
+  const [recuperando, setRecuperando] = useState(false);
   const [mensaje, setMensaje] = useState('');
+  const [tipoMensaje, setTipoMensaje] = useState<'error' | 'ok'>('error');
 
   useEffect(() => {
     if (!auth) return undefined;
@@ -30,6 +33,7 @@ export function LoginView() {
 
       setCargando(true);
       setMensaje('');
+      setTipoMensaje('error');
 
       try {
         await ensureWorkspaceState(useAppStore.getState());
@@ -78,12 +82,34 @@ export function LoginView() {
     if (!auth) return;
     setCargando(true);
     setMensaje('');
+    setTipoMensaje('error');
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch {
       setMensaje('Email o password incorrecto, o el usuario aun no existe en Firebase.');
     } finally {
       setCargando(false);
+    }
+  };
+
+  const recuperarPassword = async () => {
+    setMensaje('');
+    setTipoMensaje('error');
+
+    if (!email.trim()) {
+      setMensaje('Ingresa tu email y luego presiona recuperar password.');
+      return;
+    }
+
+    setRecuperando(true);
+    try {
+      await enviarRecuperacionPassword(email);
+      setTipoMensaje('ok');
+      setMensaje('Te enviamos un correo para crear o recuperar tu password.');
+    } catch (error) {
+      setMensaje(error instanceof Error ? error.message : 'No se pudo enviar el correo de recuperacion.');
+    } finally {
+      setRecuperando(false);
     }
   };
 
@@ -127,13 +153,31 @@ export function LoginView() {
                 required
               />
             </label>
-            {mensaje ? <p className="rounded-lg border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-100">{mensaje}</p> : null}
+            {mensaje ? (
+              <p
+                className={`rounded-lg border p-3 text-sm ${
+                  tipoMensaje === 'ok'
+                    ? 'border-emerald-300/20 bg-emerald-400/10 text-emerald-100'
+                    : 'border-red-400/20 bg-red-500/10 text-red-100'
+                }`}
+              >
+                {mensaje}
+              </p>
+            ) : null}
             <button
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-2.5 font-semibold text-slate-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={cargando}
             >
               <LockKeyhole className="h-4 w-4" />
               {cargando ? 'Ingresando...' : 'Ingresar'}
+            </button>
+            <button
+              type="button"
+              className="w-full rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={recuperando}
+              onClick={recuperarPassword}
+            >
+              {recuperando ? 'Enviando correo...' : 'Recuperar password'}
             </button>
           </form>
         )}
