@@ -1,4 +1,4 @@
-import { AlertTriangle, Ban, CalendarDays, CheckCircle2, CircleDashed, Clock3, FileText, Flag, Lock, MessageCirclePlus, MessageSquare, OctagonAlert, PlayCircle, Save, Send, UserRound } from 'lucide-react';
+import { AlertTriangle, Ban, CalendarDays, CheckCircle2, CircleDashed, Clock3, Flag, Lock, MessageCirclePlus, MessageSquare, OctagonAlert, PlayCircle, Save, Send, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Drawer } from '../ui/Drawer';
 import { EstadoTarea, Tarea } from '../../types';
@@ -78,7 +78,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
   }, [ejecutivos, perfiles, tareaActual?.responsable]);
 
   useEffect(() => {
-    if (!tareaActual || esComercial) return;
+    if (!tareaActual) return;
     setForm({
       estado: tareaActual.estado,
       responsable: tareaActual.responsable,
@@ -139,9 +139,9 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
 
   return (
     <Drawer open={!!tareaActual} title="Ficha de tarea" onClose={onClose}>
-      <div className="space-y-5">
+      <div className="space-y-3">
         <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
-          <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
             {tareaActual ? <StatusBadge estado={form.estado} ping={form.estado === 'bloqueada'} /> : null}
             {vencida ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)]">
@@ -157,28 +157,37 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
               </span>
             ) : null}
           </div>
-          <h3 className="text-2xl font-semibold text-white">{tareaActual?.nombre}</h3>
-          <p className="mt-2 text-sm text-slate-400">{tareaActual?.descripcion || 'Sin descripcion adicional.'}</p>
+          <h3 className="text-xl font-semibold leading-tight text-white">{tareaActual?.nombre}</h3>
+          {tareaActual?.descripcion ? <p className="mt-1 text-sm text-slate-400">{tareaActual.descripcion}</p> : null}
+          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-300">
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.035] px-2.5 py-1.5">
+              <Flag className="h-3.5 w-3.5 text-emerald-300" />
+              {fase ? `${fase.codigo} · ${fase.nombre}` : 'Fase'}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.035] px-2.5 py-1.5">
+              <UserRound className="h-3.5 w-3.5 text-emerald-300" />
+              {form.responsable || 'Sin asignar'}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.035] px-2.5 py-1.5">
+              <CalendarDays className="h-3.5 w-3.5 text-emerald-300" />
+              {form.fechaInicioPlan || '-'} / {form.fechaFinPlan || '-'}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.035] px-2.5 py-1.5">
+              <Clock3 className="h-3.5 w-3.5 text-emerald-300" />
+              {tareaActual?.duracionDias ?? 0} dia(s)
+            </span>
+          </div>
+          <p className="mt-2 truncate text-xs text-slate-500">{proyecto?.nombre ?? 'Proyecto'}</p>
         </section>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <InfoTile icon={FileText} label="Proyecto" value={proyecto?.nombre ?? 'Proyecto'} />
-          <InfoTile icon={Flag} label="Fase" value={fase ? `${fase.codigo} · ${fase.nombre}` : 'Fase'} />
-          <InfoTile icon={UserRound} label="Responsable" value={form.responsable || 'Sin asignar'} />
-          <InfoTile icon={Clock3} label="Duracion" value={`${tareaActual?.duracionDias ?? 0} dia(s)`} />
-          <InfoTile icon={CalendarDays} label="Inicio plan" value={form.fechaInicioPlan || '-'} />
-          <InfoTile icon={CalendarDays} label="Fin plan" value={form.fechaFinPlan || '-'} />
-        </div>
-
-        <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
-          <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-white">
+        <div className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+          <div className="mb-3 flex items-center justify-center gap-2 text-sm font-semibold text-white">
             <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-            Estado y planificacion
+            Cambiar estado
           </div>
-          <div className="grid gap-4">
+          <div className="grid gap-3">
             <label className="grid gap-2 text-sm text-slate-300">
-              Estado
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {estados.map((estado) => {
                   const config = estadoConfig[estado];
                   const Icon = config.icon;
@@ -188,27 +197,22 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
                       key={estado}
                       disabled={!puedeCambiarEstadoTarea}
                       className={[
-                        'flex min-h-16 items-center gap-3 rounded-lg border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-55',
+                        'flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border p-2 text-center transition disabled:cursor-not-allowed disabled:opacity-55',
                         active ? config.active : 'border-white/10 bg-white/[0.035] text-slate-300 hover:border-emerald-300/35 hover:bg-white/8',
                       ].join(' ')}
                       onClick={() => setForm((s) => ({ ...s, estado }))}
                       type="button"
                     >
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/8">
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <span>
-                        <span className="block font-semibold">{config.label}</span>
-                        <span className="text-xs text-slate-400">{config.hint}</span>
-                      </span>
+                      <Icon className="h-5 w-5" />
+                      <span className="text-xs font-semibold">{config.label}</span>
                     </button>
                   );
                 })}
               </div>
             </label>
 
-            <label className="grid gap-2 text-sm text-slate-300">
-              Reasignar responsable
+            <label className="grid gap-1 text-sm text-slate-300">
+              Responsable
               <select disabled={!puedeReasignar} className="rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.responsable} onChange={(e) => setForm((s) => ({ ...s, responsable: e.target.value }))}>
                 {personasAsignables.map((persona) => (
                   <option key={persona} value={persona}>
@@ -216,12 +220,9 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
                   </option>
                 ))}
               </select>
-              <span className="text-xs text-slate-500">
-                {puedeReasignar ? 'Al guardar, el nuevo responsable vera una alerta de asignacion.' : 'Solo el administrador o el responsable actual puede reasignar esta tarea.'}
-              </span>
             </label>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               <label className="grid gap-2 text-sm text-slate-300">
                 Inicio plan
                 <input disabled={!puedeEditarDatosTarea} type="date" className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.fechaInicioPlan} onChange={(e) => setForm((s) => ({ ...s, fechaInicioPlan: e.target.value }))} />
@@ -234,8 +235,8 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
           </div>
         </div>
 
-        <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
-          <div className="mb-4 flex items-center justify-between gap-3">
+        <section className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-2 font-semibold text-white">
               <MessageSquare className="h-4 w-4 text-emerald-300" />
               Observaciones
@@ -246,9 +247,9 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
             </span>
           </div>
 
-          <div className="mb-4 max-h-72 space-y-3 overflow-y-auto pr-1">
+          <div className="mb-3 max-h-36 space-y-2 overflow-y-auto pr-1">
             {tareaActual?.observacion ? (
-              <div className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+              <div className="rounded-lg border border-white/10 bg-white/[0.035] p-2">
                 <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <span className="font-medium text-slate-300">Nota anterior</span>
                   <span className="text-slate-500">Migrada desde observacion</span>
@@ -259,7 +260,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
 
             {comentarios.length ? (
               comentarios.map((comentario) => (
-                <div key={comentario.id} className="rounded-lg border border-emerald-300/10 bg-emerald-400/[0.045] p-3">
+                <div key={comentario.id} className="rounded-lg border border-emerald-300/10 bg-emerald-400/[0.045] p-2">
                   <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <span className="font-medium text-emerald-100">{comentario.usuario}</span>
                     <span className="text-slate-500">{formatFecha(comentario.fecha)}</span>
@@ -274,15 +275,15 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
 
           <label className="grid gap-2 text-sm text-slate-300">
             Agregar comentario
-            <textarea disabled={esComercial} className="min-h-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" placeholder={esComercial ? 'Perfil solo lectura' : 'Escribe una observacion, bloqueo, acuerdo o avance...'} value={form.comentarioNuevo} onChange={(e) => setForm((s) => ({ ...s, comentarioNuevo: e.target.value }))} />
+            <textarea disabled={esComercial} className="min-h-16 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" placeholder={esComercial ? 'Perfil solo lectura' : 'Escribe una observacion, bloqueo, acuerdo o avance...'} value={form.comentarioNuevo} onChange={(e) => setForm((s) => ({ ...s, comentarioNuevo: e.target.value }))} />
           </label>
         </section>
 
         {tareaActual?.historial?.length ? (
-          <div className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
-            <h3 className="mb-3 text-sm font-semibold text-white">Últimos cambios</h3>
-            <div className="space-y-2 text-xs text-slate-400">
-              {tareaActual.historial.slice(-5).map((item, index) => (
+          <div className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+            <h3 className="mb-2 text-sm font-semibold text-white">Últimos cambios</h3>
+            <div className="grid gap-1 text-xs text-slate-400 sm:grid-cols-2">
+              {tareaActual.historial.slice(-4).map((item, index) => (
                 <p key={`${item.fecha}-${index}`}>
                   {item.campo}: {item.valorAnterior || '-'} {'>'} {item.valorNuevo || '-'} · {item.usuario}
                 </p>
@@ -296,23 +297,13 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
             Perfil solo lectura: no puede modificar estado, responsable ni comentarios.
           </div>
         ) : (
-          <button className="sticky bottom-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 shadow-[0_16px_32px_rgba(16,185,129,0.24)] hover:bg-emerald-300" onClick={save}>
+          <button className="mx-auto inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 shadow-[0_16px_32px_rgba(16,185,129,0.24)] hover:bg-emerald-300 sm:w-fit sm:min-w-72" onClick={save}>
             <Save className="h-4 w-4" />
             {form.comentarioNuevo.trim() ? <Send className="h-4 w-4" /> : null}
-            {puedeEditarDatosTarea ? 'Guardar cambios' : 'Guardar estado/comentario'}
+            Actualizar tarea
           </button>
         )}
       </div>
     </Drawer>
-  );
-}
-
-function InfoTile({ icon: Icon, label, value }: { icon: typeof FileText; label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
-      <Icon className="mb-3 h-4 w-4 text-slate-500" />
-      <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-medium text-white">{value}</p>
-    </div>
   );
 }

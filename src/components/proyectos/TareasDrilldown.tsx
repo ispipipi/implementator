@@ -1,8 +1,9 @@
-import { AlertTriangle, ChevronDown, ChevronRight, FolderKanban, ListChecks, MessageSquare, Search } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, FolderKanban, ListChecks, MessageSquare, Search, StepForward } from 'lucide-react';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { useAppStore, calcPctFase, calcPctProyecto } from '../../store/useAppStore';
 import { Tarea } from '../../types';
 import { diasVencida, tareaEstaVencida } from '../../utils/taskHealth';
+import { usePermisos } from '../../hooks/usePermisos';
 import { GlassCard } from '../ui/GlassCard';
 import { ProgressBar } from '../ui/ProgressBar';
 import { StatusBadge } from '../ui/StatusBadge';
@@ -23,6 +24,13 @@ const estadoLabels: Record<string, string> = {
   pendiente: 'Pendientes',
   completada: 'Completadas',
   cancelada: 'Canceladas',
+};
+const accionEstado: Record<Tarea['estado'], { next: Tarea['estado']; label: string }> = {
+  pendiente: { next: 'en_proceso', label: 'Iniciar' },
+  en_proceso: { next: 'completada', label: 'Completar' },
+  completada: { next: 'pendiente', label: 'Reabrir' },
+  bloqueada: { next: 'en_proceso', label: 'Reactivar' },
+  cancelada: { next: 'pendiente', label: 'Reabrir' },
 };
 
 const toggleSet = (set: Set<string>, id: string) => {
@@ -76,7 +84,7 @@ export function TaskStatusGroups({
                 {group.tareas.length}
               </span>
             </button>
-            {isOpen ? <div className="grid gap-3 border-t border-white/10 p-3">{group.tareas.map((tarea) => renderTask(tarea))}</div> : null}
+            {isOpen ? <div className="grid gap-3 border-t border-white/10 p-3 md:grid-cols-2">{group.tareas.map((tarea) => renderTask(tarea))}</div> : null}
           </div>
         );
       })}
@@ -85,7 +93,8 @@ export function TaskStatusGroups({
 }
 
 export function TareasDrilldown({ tareas, showProjectLevel = true, query = '' }: Props) {
-  const { proyectos, fases } = useAppStore();
+  const { proyectos, fases, actualizarTarea, usuarioActivo } = useAppStore();
+  const { puedeCambiarEstadoTarea } = usePermisos();
   const [selected, setSelected] = useState<Tarea | null>(null);
   const normalized = query.trim().toLowerCase();
 
@@ -131,50 +140,73 @@ export function TareasDrilldown({ tareas, showProjectLevel = true, query = '' }:
     const proyecto = proyectos.find((p) => p.id === tarea.proyectoId);
     const vencida = tareaEstaVencida(tarea);
     const overdueDays = diasVencida(tarea);
+    const accion = accionEstado[tarea.estado];
+    const cambiarEstadoRapido = () => {
+      const hoy = new Date().toISOString().slice(0, 10);
+      actualizarTarea(
+        tarea.id,
+        {
+          estado: accion.next,
+          ...(accion.next === 'en_proceso' || accion.next === 'completada' ? { fechaInicioReal: tarea.fechaInicioReal ?? hoy } : {}),
+          ...(accion.next === 'completada' ? { fechaFinReal: tarea.fechaFinReal ?? hoy } : {}),
+        },
+        usuarioActivo?.nombre ?? 'Sistema',
+      );
+    };
+
     return (
-      <button
+      <div
         key={tarea.id}
         className={[
-          'group w-full rounded-lg border p-4 text-left transition',
+          'group w-full rounded-lg border p-3 text-left transition',
           vencida
             ? 'border-red-400/50 bg-red-500/15 shadow-[0_0_34px_rgba(239,68,68,0.14)] hover:border-red-300/80 hover:bg-red-500/20'
             : 'border-white/10 bg-white/[0.035] hover:border-emerald-300/35 hover:bg-white/8',
         ].join(' ')}
-        onClick={() => setSelected(tarea)}
       >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <StatusBadge estado={tarea.estado} ping={tarea.estado === 'bloqueada'} />
-              {vencida ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-2.5 py-1 text-xs font-semibold text-white">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  Vencida {overdueDays}d
-                </span>
-              ) : null}
-              {tarea.esMilestone ? <span className="rounded-full bg-amber-400/12 px-2.5 py-1 text-xs font-medium text-amber-100">Milestone</span> : null}
+        <button className="w-full text-left" onClick={() => setSelected(tarea)}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <StatusBadge estado={tarea.estado} ping={tarea.estado === 'bloqueada'} />
+                {vencida ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-2.5 py-1 text-xs font-semibold text-white">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Vencida {overdueDays}d
+                  </span>
+                ) : null}
+                {tarea.esMilestone ? <span className="rounded-full bg-amber-400/12 px-2.5 py-1 text-xs font-medium text-amber-100">Milestone</span> : null}
+              </div>
+              <h4 className="line-clamp-2 text-sm font-semibold text-white transition group-hover:text-emerald-100">{tarea.nombre}</h4>
+              <p className="mt-1 truncate text-xs text-slate-400">
+                {showProjectLevel ? null : <span>{proyecto?.nombre ?? 'Proyecto'} · </span>}
+                {tarea.responsable}
+              </p>
             </div>
-            <h4 className="font-semibold text-white transition group-hover:text-emerald-100">{tarea.nombre}</h4>
-            <p className="mt-1 text-sm text-slate-400">
-              {showProjectLevel ? null : <span>{proyecto?.nombre ?? 'Proyecto'} · </span>}
-              Responsable: {tarea.responsable}
-            </p>
+            <div className={`text-left text-xs sm:text-right ${vencida ? 'text-red-100' : 'text-slate-400'}`}>
+              <p>{tarea.fechaInicioPlan}</p>
+              <p>{tarea.fechaFinPlan}</p>
+            </div>
           </div>
-          <div className={`text-left text-sm sm:text-right ${vencida ? 'text-red-100' : 'text-slate-400'}`}>
-            <p>Inicio {tarea.fechaInicioPlan}</p>
-            <p>Fin {tarea.fechaFinPlan}</p>
-          </div>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-          <span>{tarea.duracionDias} dia(s) planificados</span>
+        </button>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-xs text-slate-500">
           {tarea.observacion || tarea.comentarios?.length ? (
             <span className="inline-flex items-center gap-1 text-emerald-200">
               <MessageSquare className="h-3.5 w-3.5" />
               {tarea.comentarios?.length ? `${tarea.comentarios.length} mensaje(s)` : 'Con notas'}
             </span>
-          ) : null}
+          ) : <span>{tarea.duracionDias} dia(s)</span>}
+          <button
+            disabled={!puedeCambiarEstadoTarea}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300/20 px-2.5 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-45"
+            onClick={cambiarEstadoRapido}
+            type="button"
+          >
+            <StepForward className="h-3.5 w-3.5" />
+            {accion.label}
+          </button>
         </div>
-      </button>
+      </div>
     );
   };
 
