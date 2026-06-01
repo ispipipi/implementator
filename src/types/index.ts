@@ -78,6 +78,12 @@ export interface Tarea {
   duracionDias: number;
   esMilestone: boolean;
   observacion?: string;
+  comentarios?: Array<{
+    id: string;
+    texto: string;
+    usuario: string;
+    fecha: string;
+  }>;
   actualizadoEn: string;
   historial?: Array<{
     fecha: string;

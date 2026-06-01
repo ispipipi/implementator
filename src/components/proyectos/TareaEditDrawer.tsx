@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, Clock3, FileText, Flag, Lock, MessageSquare, Save, UserRound } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock3, FileText, Flag, Lock, MessageCirclePlus, MessageSquare, Save, Send, UserRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Drawer } from '../ui/Drawer';
 import { EstadoTarea, Tarea } from '../../types';
@@ -15,13 +15,13 @@ const estados: EstadoTarea[] = ['pendiente', 'en_proceso', 'completada', 'bloque
 
 export function TareaEditDrawer({ tarea, onClose }: Props) {
   const { actualizarTarea, usuarioActivo, proyectos, fases } = useAppStore();
-  const { puedeEditarTareas } = usePermisos();
+  const { puedeCambiarEstadoTarea, puedeEditarDatosTarea } = usePermisos();
   const [form, setForm] = useState({
     estado: 'pendiente' as EstadoTarea,
     responsable: '',
     fechaInicioPlan: '',
     fechaFinPlan: '',
-    observacion: '',
+    comentarioNuevo: '',
   });
 
   const proyecto = tarea ? proyectos.find((p) => p.id === tarea.proyectoId) : null;
@@ -34,23 +34,48 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
       responsable: tarea.responsable,
       fechaInicioPlan: tarea.fechaInicioPlan,
       fechaFinPlan: tarea.fechaFinPlan,
-      observacion: tarea.observacion ?? '',
+      comentarioNuevo: '',
     });
   }, [tarea]);
 
   const save = () => {
     if (!tarea) return;
     const hoy = new Date().toISOString().slice(0, 10);
-    const cambios = puedeEditarTareas
-      ? {
-          ...form,
-          fechaInicioReal: form.estado === 'en_proceso' || form.estado === 'completada' ? (tarea.fechaInicioReal ?? hoy) : tarea.fechaInicioReal,
-          fechaFinReal: form.estado === 'completada' ? (tarea.fechaFinReal ?? hoy) : tarea.fechaFinReal,
-        }
-      : { observacion: form.observacion };
+    const nuevoComentario = form.comentarioNuevo.trim();
+    const comentarios = nuevoComentario
+      ? [
+          ...(tarea.comentarios ?? []),
+          {
+            id: `comentario-${crypto.randomUUID?.() ?? Date.now()}`,
+            texto: nuevoComentario,
+            usuario: usuarioActivo?.nombre ?? 'Sistema',
+            fecha: new Date().toISOString(),
+          },
+        ]
+      : tarea.comentarios;
+    const cambios = {
+      estado: form.estado,
+      fechaInicioReal: form.estado === 'en_proceso' || form.estado === 'completada' ? (tarea.fechaInicioReal ?? hoy) : tarea.fechaInicioReal,
+      fechaFinReal: form.estado === 'completada' ? (tarea.fechaFinReal ?? hoy) : tarea.fechaFinReal,
+      ...(comentarios ? { comentarios } : {}),
+      ...(puedeEditarDatosTarea
+        ? {
+            responsable: form.responsable,
+            fechaInicioPlan: form.fechaInicioPlan,
+            fechaFinPlan: form.fechaFinPlan,
+          }
+        : {}),
+    };
     actualizarTarea(tarea.id, cambios, usuarioActivo?.nombre ?? 'Sistema');
     onClose();
   };
+
+  const comentarios = tarea?.comentarios ?? [];
+  const formatFecha = (fecha: string) =>
+    new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(fecha));
 
   return (
     <Drawer open={!!tarea} title="Ficha de tarea" onClose={onClose}>
@@ -59,10 +84,10 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
           <div className="mb-4 flex flex-wrap items-center gap-2">
             {tarea ? <StatusBadge estado={form.estado} ping={form.estado === 'bloqueada'} /> : null}
             {tarea?.esMilestone ? <span className="rounded-full bg-amber-400/12 px-2.5 py-1 text-xs font-medium text-amber-100">Milestone</span> : null}
-            {!puedeEditarTareas ? (
+            {!puedeEditarDatosTarea ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 text-xs text-slate-400">
                 <Lock className="h-3.5 w-3.5" />
-                Edicion limitada
+                Solo estado y comentarios
               </span>
             ) : null}
           </div>
@@ -87,7 +112,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
           <div className="grid gap-4">
             <label className="grid gap-2 text-sm text-slate-300">
               Estado
-              <select disabled={!puedeEditarTareas} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.estado} onChange={(e) => setForm((s) => ({ ...s, estado: e.target.value as EstadoTarea }))}>
+              <select disabled={!puedeCambiarEstadoTarea} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.estado} onChange={(e) => setForm((s) => ({ ...s, estado: e.target.value as EstadoTarea }))}>
                 {estados.map((estado) => (
                   <option key={estado} value={estado}>
                     {estado.replace('_', ' ')}
@@ -98,30 +123,65 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
 
             <label className="grid gap-2 text-sm text-slate-300">
               Responsable
-              <input disabled={!puedeEditarTareas} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.responsable} onChange={(e) => setForm((s) => ({ ...s, responsable: e.target.value }))} />
+              <input disabled={!puedeEditarDatosTarea} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.responsable} onChange={(e) => setForm((s) => ({ ...s, responsable: e.target.value }))} />
             </label>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="grid gap-2 text-sm text-slate-300">
                 Inicio plan
-                <input disabled={!puedeEditarTareas} type="date" className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.fechaInicioPlan} onChange={(e) => setForm((s) => ({ ...s, fechaInicioPlan: e.target.value }))} />
+                <input disabled={!puedeEditarDatosTarea} type="date" className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.fechaInicioPlan} onChange={(e) => setForm((s) => ({ ...s, fechaInicioPlan: e.target.value }))} />
               </label>
               <label className="grid gap-2 text-sm text-slate-300">
                 Fin plan
-                <input disabled={!puedeEditarTareas} type="date" className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.fechaFinPlan} onChange={(e) => setForm((s) => ({ ...s, fechaFinPlan: e.target.value }))} />
+                <input disabled={!puedeEditarDatosTarea} type="date" className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.fechaFinPlan} onChange={(e) => setForm((s) => ({ ...s, fechaFinPlan: e.target.value }))} />
               </label>
             </div>
           </div>
         </div>
 
-        <label className="grid gap-2 rounded-xl border border-white/10 bg-white/[0.035] p-4 text-sm text-slate-300">
-          <span className="inline-flex items-center gap-2 font-semibold text-white">
-            <MessageSquare className="h-4 w-4 text-emerald-300" />
-            Observaciones y notas
-          </span>
-          <textarea className="min-h-32 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white" placeholder="Agregar observaciones, bloqueos, acuerdos o comentarios de avance..." value={form.observacion} onChange={(e) => setForm((s) => ({ ...s, observacion: e.target.value }))} />
-          {!puedeEditarTareas ? <span className="text-xs text-slate-500">Este perfil puede dejar notas, pero no modificar responsable, fechas ni estado.</span> : null}
-        </label>
+        <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2 font-semibold text-white">
+              <MessageSquare className="h-4 w-4 text-emerald-300" />
+              Observaciones
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-1 text-xs text-emerald-100">
+              <MessageCirclePlus className="h-3.5 w-3.5" />
+              Nuevo mensaje
+            </span>
+          </div>
+
+          <div className="mb-4 max-h-72 space-y-3 overflow-y-auto pr-1">
+            {tarea?.observacion ? (
+              <div className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
+                <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="font-medium text-slate-300">Nota anterior</span>
+                  <span className="text-slate-500">Migrada desde observacion</span>
+                </div>
+                <p className="whitespace-pre-wrap text-sm text-slate-300">{tarea.observacion}</p>
+              </div>
+            ) : null}
+
+            {comentarios.length ? (
+              comentarios.map((comentario) => (
+                <div key={comentario.id} className="rounded-lg border border-emerald-300/10 bg-emerald-400/[0.045] p-3">
+                  <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="font-medium text-emerald-100">{comentario.usuario}</span>
+                    <span className="text-slate-500">{formatFecha(comentario.fecha)}</span>
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm text-slate-200">{comentario.texto}</p>
+                </div>
+              ))
+            ) : !tarea?.observacion ? (
+              <p className="rounded-lg border border-dashed border-white/10 p-3 text-sm text-slate-500">Sin comentarios todavía.</p>
+            ) : null}
+          </div>
+
+          <label className="grid gap-2 text-sm text-slate-300">
+            Agregar comentario
+            <textarea className="min-h-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white" placeholder="Escribe una observacion, bloqueo, acuerdo o avance..." value={form.comentarioNuevo} onChange={(e) => setForm((s) => ({ ...s, comentarioNuevo: e.target.value }))} />
+          </label>
+        </section>
 
         {tarea?.historial?.length ? (
           <div className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
@@ -138,7 +198,8 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
 
         <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 hover:bg-emerald-300" onClick={save}>
           <Save className="h-4 w-4" />
-          {puedeEditarTareas ? 'Guardar cambios' : 'Guardar nota'}
+          {form.comentarioNuevo.trim() ? <Send className="h-4 w-4" /> : null}
+          {puedeEditarDatosTarea ? 'Guardar cambios' : 'Guardar estado/comentario'}
         </button>
       </div>
     </Drawer>

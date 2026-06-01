@@ -6,6 +6,8 @@ export const usePermisos = () => {
 
   return {
     puedeEditarTareas: perfil === 'artbpo_admin' || perfil === 'artbpo_ejecutivo',
+    puedeEditarDatosTarea: perfil === 'artbpo_admin',
+    puedeCambiarEstadoTarea: !!usuarioActivo,
     puedeEditarProyectos: perfil === 'artbpo_admin',
     puedeAdministrar: perfil === 'artbpo_admin',
     esAdmin: perfil === 'artbpo_admin',

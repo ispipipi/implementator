@@ -92,10 +92,10 @@ export function TareasDrilldown({ tareas, showProjectLevel = true, query = '' }:
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
           <span>{tarea.duracionDias} dia(s) planificados</span>
-          {tarea.observacion ? (
+          {tarea.observacion || tarea.comentarios?.length ? (
             <span className="inline-flex items-center gap-1 text-emerald-200">
               <MessageSquare className="h-3.5 w-3.5" />
-              Con notas
+              {tarea.comentarios?.length ? `${tarea.comentarios.length} mensaje(s)` : 'Con notas'}
             </span>
           ) : null}
         </div>
