@@ -2,13 +2,35 @@ import { Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useProyectosVisibles } from '../../hooks/usePermisos';
 import { useAppStore } from '../../store/useAppStore';
-import { Tarea } from '../../types';
+import { Tarea, UsuarioActivo } from '../../types';
 import { TareasDrilldown } from '../proyectos/TareasDrilldown';
 
-const getTasksForUser = (tareas: Tarea[], proyectoIds: string[], usuarioNombre: string, perfil?: string) => {
+const normalizar = (value?: string) =>
+  (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+
+const responsableAsignadoAUsuario = (responsable: string, usuario: UsuarioActivo) => {
+  const responsableNormalizado = normalizar(responsable);
+  const nombreNormalizado = normalizar(usuario.nombre);
+  const inicialesNormalizadas = normalizar(usuario.iniciales);
+  const primerNombre = nombreNormalizado.split(' ')[0] ?? '';
+
+  if (!responsableNormalizado || !nombreNormalizado) return false;
+  if (responsableNormalizado === nombreNormalizado) return true;
+  if (inicialesNormalizadas && responsableNormalizado === inicialesNormalizadas) return true;
+  if (primerNombre.length >= 3 && responsableNormalizado === primerNombre) return true;
+
+  return responsableNormalizado.includes(nombreNormalizado) || nombreNormalizado.includes(responsableNormalizado);
+};
+
+const getTasksForUser = (tareas: Tarea[], proyectoIds: string[], usuario: UsuarioActivo | null) => {
   const visible = tareas.filter((tarea) => proyectoIds.includes(tarea.proyectoId));
-  if (perfil === 'artbpo_ejecutivo') {
-    return visible.filter((tarea) => tarea.responsable.toLowerCase() === usuarioNombre.toLowerCase());
+  if (usuario?.perfil === 'artbpo_ejecutivo') {
+    return visible.filter((tarea) => responsableAsignadoAUsuario(tarea.responsable, usuario));
   }
   return visible;
 };
@@ -20,7 +42,7 @@ export function MisTareasView() {
   const proyectoIds = proyectos.map((p) => p.id);
 
   const misTareas = useMemo(() => {
-    return getTasksForUser(tareas, proyectoIds, usuarioActivo?.nombre ?? '', usuarioActivo?.perfil);
+    return getTasksForUser(tareas, proyectoIds, usuarioActivo);
   }, [proyectoIds, tareas, usuarioActivo]);
 
   return (
