@@ -1,26 +1,36 @@
 import { useAppStore } from '../store/useAppStore';
 
 export const usePermisos = () => {
-  const { usuarioActivo } = useAppStore();
+  const { usuarioActivo, perfilesAcceso } = useAppStore();
   const perfil = usuarioActivo?.perfil;
+  const perfilAcceso = perfilesAcceso.find((item) => item.id === perfil);
+  const accesos = perfilAcceso?.accesos;
+  const esCliente = accesos?.esCliente ?? perfil === 'cliente';
+  const soloLectura = accesos?.soloLectura ?? perfil === 'comercial';
 
   return {
-    puedeEditarTareas: perfil === 'artbpo_admin' || perfil === 'artbpo_ejecutivo',
-    puedeEditarDatosTarea: perfil === 'artbpo_admin',
-    puedeCambiarEstadoTarea: !!usuarioActivo && perfil !== 'comercial',
-    puedeEditarProyectos: perfil === 'artbpo_admin',
-    puedeAdministrar: perfil === 'artbpo_admin',
-    esAdmin: perfil === 'artbpo_admin',
+    puedeEditarTareas: !!usuarioActivo && !soloLectura,
+    puedeEditarDatosTarea: accesos?.puedeEditarDatosTarea ?? perfil === 'artbpo_admin',
+    puedeCambiarEstadoTarea: !!usuarioActivo && !soloLectura && (accesos?.puedeCambiarEstadoTarea ?? perfil !== 'comercial'),
+    puedeEditarProyectos: accesos?.puedeEditarProyectos ?? perfil === 'artbpo_admin',
+    puedeAdministrar: accesos?.puedeAdministrar ?? perfil === 'artbpo_admin',
+    puedeGestionarUsuarios: accesos?.puedeGestionarUsuarios ?? perfil === 'artbpo_admin',
+    puedeVerGanttAdmin: accesos?.puedeVerGanttAdmin ?? perfil === 'artbpo_admin',
+    esAdmin: accesos?.puedeAdministrar ?? perfil === 'artbpo_admin',
     esEjecutivo: perfil === 'artbpo_ejecutivo',
     esTMF: perfil === 'tmf',
-    esCliente: perfil === 'cliente',
-    esComercial: perfil === 'comercial',
-    soloLectura: perfil === 'tmf' || perfil === 'cliente' || perfil === 'comercial',
+    esCliente,
+    esComercial: perfil === 'comercial' || soloLectura,
+    soloLectura,
   };
 };
 
 export const useProyectosVisibles = () => {
-  const { proyectos, usuarioActivo } = useAppStore();
+  const { proyectos, usuarioActivo, perfilesAcceso } = useAppStore();
   if (!usuarioActivo) return [];
+  const perfilAcceso = perfilesAcceso.find((item) => item.id === usuarioActivo.perfil);
+  if ((perfilAcceso?.accesos.esCliente ?? usuarioActivo.perfil === 'cliente') && usuarioActivo.proyectoClienteId) {
+    return proyectos.filter((proyecto) => proyecto.id === usuarioActivo.proyectoClienteId);
+  }
   return proyectos;
 };

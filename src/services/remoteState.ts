@@ -4,7 +4,7 @@ import { db } from './firebaseClient';
 
 type SharedState = Pick<
   AppState,
-  'perfiles' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'
+  'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'
 >;
 
 const workspaceRef = () => {
@@ -31,6 +31,7 @@ const removeUndefined = <T,>(value: T): T => {
 export function toSharedState(state: AppState): SharedState {
   return {
     perfiles: state.perfiles,
+    perfilesAcceso: state.perfilesAcceso,
     ejecutivos: state.ejecutivos,
     proyectos: state.proyectos,
     fases: state.fases,

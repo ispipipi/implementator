@@ -1,4 +1,4 @@
-import { UsuarioActivo } from '../types';
+import { PerfilAcceso, UsuarioActivo } from '../types';
 
 export const PERFILES_SEED: UsuarioActivo[] = [
   {
@@ -71,5 +71,88 @@ export const PERFILES_SEED: UsuarioActivo[] = [
     color: '#06b6d4',
     email: '',
     activo: true,
+  },
+];
+
+export const PERFILES_ACCESO_SEED: PerfilAcceso[] = [
+  {
+    id: 'artbpo_admin',
+    nombre: 'Administrador',
+    descripcion: 'Acceso total a configuracion, proyectos, tareas, usuarios y Gantt.',
+    protegido: true,
+    accesos: {
+      puedeAdministrar: true,
+      puedeEditarProyectos: true,
+      puedeEditarDatosTarea: true,
+      puedeCambiarEstadoTarea: true,
+      puedeVerGanttAdmin: true,
+      puedeGestionarUsuarios: true,
+      soloLectura: false,
+      esCliente: false,
+    },
+  },
+  {
+    id: 'artbpo_ejecutivo',
+    nombre: 'Analista',
+    descripcion: 'Gestiona sus tareas, estados, comentarios y reasignaciones permitidas.',
+    protegido: true,
+    accesos: {
+      puedeAdministrar: false,
+      puedeEditarProyectos: false,
+      puedeEditarDatosTarea: false,
+      puedeCambiarEstadoTarea: true,
+      puedeVerGanttAdmin: false,
+      puedeGestionarUsuarios: false,
+      soloLectura: false,
+      esCliente: false,
+    },
+  },
+  {
+    id: 'tmf',
+    nombre: 'TMF',
+    descripcion: 'Consulta proyectos y tareas sin modificar datos.',
+    protegido: true,
+    accesos: {
+      puedeAdministrar: false,
+      puedeEditarProyectos: false,
+      puedeEditarDatosTarea: false,
+      puedeCambiarEstadoTarea: true,
+      puedeVerGanttAdmin: false,
+      puedeGestionarUsuarios: false,
+      soloLectura: false,
+      esCliente: false,
+    },
+  },
+  {
+    id: 'cliente',
+    nombre: 'Cliente',
+    descripcion: 'Consulta el proyecto cliente asociado y puede revisar sus tareas.',
+    protegido: true,
+    accesos: {
+      puedeAdministrar: false,
+      puedeEditarProyectos: false,
+      puedeEditarDatosTarea: false,
+      puedeCambiarEstadoTarea: true,
+      puedeVerGanttAdmin: false,
+      puedeGestionarUsuarios: false,
+      soloLectura: false,
+      esCliente: true,
+    },
+  },
+  {
+    id: 'comercial',
+    nombre: 'Comercial solo lectura',
+    descripcion: 'Consulta informacion comercial y avance sin editar.',
+    protegido: true,
+    accesos: {
+      puedeAdministrar: false,
+      puedeEditarProyectos: false,
+      puedeEditarDatosTarea: false,
+      puedeCambiarEstadoTarea: false,
+      puedeVerGanttAdmin: false,
+      puedeGestionarUsuarios: false,
+      soloLectura: true,
+      esCliente: false,
+    },
   },
 ];

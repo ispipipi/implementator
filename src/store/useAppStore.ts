@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { PLANTILLA_FASES } from '../data/plantillaFases';
 import { SEED_DATA } from '../data/seedData';
-import { PERFILES_SEED } from '../data/perfiles';
+import { PERFILES_ACCESO_SEED, PERFILES_SEED } from '../data/perfiles';
 import { GOOGLE_SHEETS_GANTT_URL } from '../data/googleSheetsSource';
 import { Alerta, AppState, ExpedienteProyecto, Fase, Tarea } from '../types';
 import { saveWorkspaceState } from '../services/remoteState';
@@ -25,6 +25,12 @@ const asegurarPerfilesBase = (perfiles: AppState['perfiles']) => {
   const emails = new Set(perfiles.map((perfil) => perfil.email?.toLowerCase()).filter(Boolean));
   const faltantes = PERFILES_SEED.filter((perfil) => !ids.has(perfil.id) && (!perfil.email || !emails.has(perfil.email.toLowerCase())));
   return faltantes.length ? [...perfiles, ...faltantes] : perfiles;
+};
+
+const asegurarPerfilesAccesoBase = (perfilesAcceso: AppState['perfilesAcceso']) => {
+  const ids = new Set(perfilesAcceso.map((perfil) => perfil.id));
+  const faltantes = PERFILES_ACCESO_SEED.filter((perfil) => !ids.has(perfil.id));
+  return faltantes.length ? [...perfilesAcceso, ...faltantes] : perfilesAcceso;
 };
 
 const generarPlanProyecto = (proyectoId: string, fechaInicio: string, responsable: string) => {
@@ -80,6 +86,7 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       usuarioActivo: null,
       perfiles: PERFILES_SEED,
+      perfilesAcceso: PERFILES_ACCESO_SEED,
       ejecutivos: SEED_DATA.ejecutivos,
       proyectos: SEED_DATA.proyectos,
       fases: SEED_DATA.fases,
@@ -111,6 +118,7 @@ export const useAppStore = create<AppState>()(
       aplicarEstadoCompartido: (estado) =>
         set({
           perfiles: asegurarPerfilesBase(estado.perfiles ?? get().perfiles),
+          perfilesAcceso: asegurarPerfilesAccesoBase(estado.perfilesAcceso ?? get().perfilesAcceso),
           ejecutivos: estado.ejecutivos ?? get().ejecutivos,
           proyectos: estado.proyectos ?? get().proyectos,
           fases: estado.fases ?? get().fases,
@@ -141,6 +149,49 @@ export const useAppStore = create<AppState>()(
           usuarioActivo: s.usuarioActivo?.id === id ? null : s.usuarioActivo,
         }));
         guardarRemoto(get(), 'eliminar_perfil');
+      },
+
+      crearUsuario: (usuario) => {
+        get().crearPerfil(usuario);
+      },
+
+      actualizarUsuario: (id, cambios) => {
+        get().actualizarPerfil(id, cambios);
+      },
+
+      eliminarUsuario: (id) => {
+        get().eliminarPerfil(id);
+      },
+
+      crearPerfilAcceso: (perfil) => {
+        const nombre = perfil.nombre.trim();
+        if (!nombre) return;
+        const id = perfil.id?.trim() || `perfil-${nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || makeId('perfil-acceso')}`;
+        set((s) => ({
+          perfilesAcceso: [
+            ...s.perfilesAcceso,
+            {
+              ...perfil,
+              id,
+              nombre,
+            },
+          ],
+        }));
+        guardarRemoto(get(), 'crear_perfil_acceso');
+      },
+
+      actualizarPerfilAcceso: (id, cambios) => {
+        set((s) => ({
+          perfilesAcceso: s.perfilesAcceso.map((perfil) => (perfil.id === id ? { ...perfil, ...cambios } : perfil)),
+        }));
+        guardarRemoto(get(), 'actualizar_perfil_acceso');
+      },
+
+      eliminarPerfilAcceso: (id) => {
+        set((s) => ({
+          perfilesAcceso: s.perfilesAcceso.filter((perfil) => perfil.id !== id || perfil.protegido),
+        }));
+        guardarRemoto(get(), 'eliminar_perfil_acceso');
       },
 
       reemplazarPlanificacionProyecto: (proyectoId, fasesImportadas, tareasImportadas, usuario, fechas) => {
@@ -451,6 +502,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         usuarioActivo: state.usuarioActivo,
         perfiles: state.perfiles,
+        perfilesAcceso: state.perfilesAcceso,
         ejecutivos: state.ejecutivos,
         proyectos: state.proyectos,
         fases: state.fases,

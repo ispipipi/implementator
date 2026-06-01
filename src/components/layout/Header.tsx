@@ -7,7 +7,7 @@ import { Breadcrumb } from './Breadcrumb';
 
 export function Header() {
   const { usuarioActivo, setVista, tema } = useAppStore();
-  const { puedeAdministrar } = usePermisos();
+  const { puedeAdministrar, puedeGestionarUsuarios, puedeVerGanttAdmin } = usePermisos();
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0f1117]/78 backdrop-blur-xl">
@@ -55,15 +55,19 @@ export function Header() {
               <Building2 className="h-4 w-4" />
               Info cliente
             </button>
-            {puedeAdministrar ? (
+            {puedeVerGanttAdmin || puedeGestionarUsuarios || puedeAdministrar ? (
               <>
-                <button className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/8" onClick={() => setVista('gantt_admin')}>
-                  <CalendarRange className="h-4 w-4" />
-                  Gantt admin
-                </button>
-                <button className="shrink-0 rounded-lg border border-white/10 p-2 text-slate-300 hover:bg-white/8" onClick={() => setVista('ajustes')} aria-label="Ajustes">
-                  <Settings className="h-5 w-5" />
-                </button>
+                {puedeVerGanttAdmin ? (
+                  <button className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/8" onClick={() => setVista('gantt_admin')}>
+                    <CalendarRange className="h-4 w-4" />
+                    Gantt admin
+                  </button>
+                ) : null}
+                {puedeGestionarUsuarios || puedeAdministrar ? (
+                  <button className="shrink-0 rounded-lg border border-white/10 p-2 text-slate-300 hover:bg-white/8" onClick={() => setVista('ajustes')} aria-label="Ajustes">
+                    <Settings className="h-5 w-5" />
+                  </button>
+                ) : null}
               </>
             ) : null}
             <div

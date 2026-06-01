@@ -6,7 +6,7 @@ export type EstadoSemaforo = 'verde' | 'amarillo' | 'rojo';
 
 export type PerfilApp = 'artbpo_admin' | 'artbpo_ejecutivo';
 
-export type PerfilUsuario = PerfilApp | 'tmf' | 'cliente' | 'comercial';
+export type PerfilUsuario = string;
 
 export type TemaApp = 'dia' | 'noche';
 
@@ -20,6 +20,25 @@ export interface UsuarioActivo {
   email?: string;
   activo?: boolean;
   proyectoClienteId?: string;
+}
+
+export interface AccesosPerfil {
+  puedeAdministrar: boolean;
+  puedeEditarProyectos: boolean;
+  puedeEditarDatosTarea: boolean;
+  puedeCambiarEstadoTarea: boolean;
+  puedeVerGanttAdmin: boolean;
+  puedeGestionarUsuarios: boolean;
+  soloLectura: boolean;
+  esCliente: boolean;
+}
+
+export interface PerfilAcceso {
+  id: PerfilUsuario;
+  nombre: string;
+  descripcion?: string;
+  accesos: AccesosPerfil;
+  protegido?: boolean;
 }
 
 export interface Ejecutivo {
@@ -155,6 +174,7 @@ export type Vista = 'dashboard' | 'proyectos' | 'proyecto' | 'fase' | 'mis_tarea
 export interface AppState {
   usuarioActivo: UsuarioActivo | null;
   perfiles: UsuarioActivo[];
+  perfilesAcceso: PerfilAcceso[];
   ejecutivos: Ejecutivo[];
   proyectos: Proyecto[];
   fases: Fase[];
@@ -173,10 +193,16 @@ export interface AppState {
   setTema: (tema: TemaApp) => void;
   alternarTema: () => void;
   setFuenteGoogleSheetsUrl: (url: string) => void;
-  aplicarEstadoCompartido: (estado: Partial<Pick<AppState, 'perfiles' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>>) => void;
+  aplicarEstadoCompartido: (estado: Partial<Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>>) => void;
   crearPerfil: (perfil: Omit<UsuarioActivo, 'id'>) => void;
   actualizarPerfil: (id: string, cambios: Partial<UsuarioActivo>) => void;
   eliminarPerfil: (id: string) => void;
+  crearUsuario: (usuario: Omit<UsuarioActivo, 'id'>) => void;
+  actualizarUsuario: (id: string, cambios: Partial<UsuarioActivo>) => void;
+  eliminarUsuario: (id: string) => void;
+  crearPerfilAcceso: (perfil: Omit<PerfilAcceso, 'id'> & { id?: string }) => void;
+  actualizarPerfilAcceso: (id: string, cambios: Partial<PerfilAcceso>) => void;
+  eliminarPerfilAcceso: (id: string) => void;
   reemplazarPlanificacionProyecto: (proyectoId: string, fases: Fase[], tareas: Tarea[], usuario: string, fechas?: { fechaInicio?: string; fechaFin?: string }) => void;
   actualizarTarea: (id: string, cambios: Partial<Tarea>, usuario: string) => void;
   actualizarFechasGantt: (tareaId: string, inicio: string, fin: string) => void;

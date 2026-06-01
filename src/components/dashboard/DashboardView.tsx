@@ -1,6 +1,6 @@
 import { AlertTriangle, ArrowLeft, ArrowRight, BarChart3, CheckCircle2, Clock3, FolderKanban, Gauge, ListChecks } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useProyectosVisibles } from '../../hooks/usePermisos';
+import { usePermisos, useProyectosVisibles } from '../../hooks/usePermisos';
 import { useAppStore, calcPctFase, calcPctProyecto, semaforoProyecto } from '../../store/useAppStore';
 import { Alerta, Fase, Proyecto, Tarea } from '../../types';
 import { alertaVisibleParaUsuario } from '../../utils/assignee';
@@ -43,13 +43,14 @@ const sortTareas = (a: Tarea, b: Tarea) => a.fechaInicioPlan.localeCompare(b.fec
 export function DashboardView() {
   const proyectos = useProyectosVisibles();
   const { tareas, fases, alertas, setVista, usuarioActivo } = useAppStore();
+  const { esCliente } = usePermisos();
   const [kpiActivo, setKpiActivo] = useState<KpiDetalle | null>(null);
   const [proyectoDrillId, setProyectoDrillId] = useState<string | null>(null);
   const [faseDrillId, setFaseDrillId] = useState<string | null>(null);
   const [tareaSeleccionada, setTareaSeleccionada] = useState<Tarea | null>(null);
 
-  if (usuarioActivo?.perfil === 'cliente') {
-    const proyectoCliente = proyectos.find((p) => p.id === usuarioActivo.proyectoClienteId) ?? proyectos[0];
+  if (esCliente) {
+    const proyectoCliente = proyectos.find((p) => p.id === usuarioActivo?.proyectoClienteId) ?? proyectos[0];
     if (!proyectoCliente) {
       return (
         <GlassCard className="p-6 text-slate-300">
