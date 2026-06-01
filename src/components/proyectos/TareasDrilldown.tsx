@@ -16,7 +16,7 @@ type Props = {
 };
 
 const sortByPlan = (a: Tarea, b: Tarea) => a.fechaInicioPlan.localeCompare(b.fechaInicioPlan);
-const estadosOrden = ['vencida', 'bloqueada', 'en_proceso', 'pendiente', 'completada', 'cancelada'];
+const estadosOrden = ['vencida', 'bloqueada', 'en_proceso', 'pendiente', 'cancelada', 'completada'];
 const estadoLabels: Record<string, string> = {
   vencida: 'Vencidas',
   bloqueada: 'Bloqueadas',
