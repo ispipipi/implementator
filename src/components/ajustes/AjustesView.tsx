@@ -1,4 +1,5 @@
-import { Lock } from 'lucide-react';
+import { BriefcaseBusiness, ClipboardList, Lock, ShieldCheck, UserCog, Users } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { usePermisos } from '../../hooks/usePermisos';
 import { GlassCard } from '../ui/GlassCard';
 import { MantenedorEjecutivos } from './MantenedorEjecutivos';
@@ -7,8 +8,29 @@ import { MantenedorPlantilla } from './MantenedorPlantilla';
 import { MantenedorProyectos } from './MantenedorProyectos';
 import { MantenedorUsuarios } from './MantenedorUsuarios';
 
+type AjusteTab = 'perfiles' | 'usuarios' | 'proyectos' | 'ejecutivos' | 'plantilla';
+
 export function AjustesView() {
   const { puedeAdministrar, puedeGestionarUsuarios } = usePermisos();
+  const [tabActiva, setTabActiva] = useState<AjusteTab>('perfiles');
+
+  const tabs = useMemo(() => {
+    const base = [
+      { id: 'perfiles' as const, label: 'Mantenedor perfiles', description: 'Roles y accesos', icon: ShieldCheck },
+      { id: 'usuarios' as const, label: 'Mantenedor usuarios', description: 'Personas, correo y perfil', icon: Users },
+    ];
+
+    if (!puedeAdministrar) return base;
+
+    return [
+      ...base,
+      { id: 'proyectos' as const, label: 'Mantenedor proyectos', description: 'Clientes e implementaciones', icon: BriefcaseBusiness },
+      { id: 'ejecutivos' as const, label: 'Mantenedor equipo', description: 'Responsables internos', icon: UserCog },
+      { id: 'plantilla' as const, label: 'Plantilla Gantt', description: 'Fases y tareas base', icon: ClipboardList },
+    ];
+  }, [puedeAdministrar]);
+
+  const tabDisponible = tabs.some((tab) => tab.id === tabActiva) ? tabActiva : tabs[0]?.id;
 
   if (!puedeAdministrar && !puedeGestionarUsuarios) {
     return (
@@ -26,15 +48,43 @@ export function AjustesView() {
         <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">Administración</p>
         <h1 className="mt-2 text-3xl font-semibold text-white">Ajustes</h1>
       </div>
-      <MantenedorPerfiles />
-      <MantenedorUsuarios />
-      {puedeAdministrar ? (
-        <>
-          <MantenedorProyectos />
-          <MantenedorEjecutivos />
-          <MantenedorPlantilla />
-        </>
-      ) : null}
+
+      <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+        <aside className="rounded-xl border border-white/10 bg-white/[0.025] p-2 lg:sticky lg:top-32">
+          <nav className="grid gap-1">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const active = tabDisponible === tab.id;
+
+              return (
+                <button
+                  key={tab.id}
+                  className={`flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition ${
+                    active
+                      ? 'border border-emerald-300/30 bg-emerald-300/12 text-emerald-50'
+                      : 'border border-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.04]'
+                  }`}
+                  onClick={() => setTabActiva(tab.id)}
+                >
+                  <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${active ? 'text-emerald-200' : 'text-slate-500'}`} />
+                  <span className="min-w-0">
+                    <span className="block font-semibold">{tab.label}</span>
+                    <span className="mt-0.5 block text-xs text-slate-500">{tab.description}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <section className="min-w-0">
+          {tabDisponible === 'perfiles' ? <MantenedorPerfiles /> : null}
+          {tabDisponible === 'usuarios' ? <MantenedorUsuarios /> : null}
+          {tabDisponible === 'proyectos' && puedeAdministrar ? <MantenedorProyectos /> : null}
+          {tabDisponible === 'ejecutivos' && puedeAdministrar ? <MantenedorEjecutivos /> : null}
+          {tabDisponible === 'plantilla' && puedeAdministrar ? <MantenedorPlantilla /> : null}
+        </section>
+      </div>
     </div>
   );
 }
