@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useProyectosVisibles } from '../../hooks/usePermisos';
 import { useAppStore, calcPctFase, calcPctProyecto, semaforoProyecto } from '../../store/useAppStore';
 import { Alerta, Fase, Proyecto, Tarea } from '../../types';
+import { alertaVisibleParaUsuario } from '../../utils/assignee';
 import { GlassCard } from '../ui/GlassCard';
 import { ProgressBar } from '../ui/ProgressBar';
 import { ProgressRing } from '../ui/ProgressRing';
@@ -156,7 +157,7 @@ export function DashboardView() {
       ? 'amarillo'
       : 'verde';
 
-  const alertasVisibles = alertas.filter((alerta) => proyectos.some((p) => p.id === alerta.proyectoId));
+  const alertasVisibles = alertas.filter((alerta) => proyectos.some((p) => p.id === alerta.proyectoId) && alertaVisibleParaUsuario(alerta, usuarioActivo));
   const alertasAbiertas = alertasVisibles.filter((a) => !a.leida);
   const proyectosActivos = proyectos.filter((p) => p.estado === 'activo');
 
@@ -207,7 +208,7 @@ export function DashboardView() {
             <div className="grid gap-8 lg:grid-cols-[1fr_220px] lg:items-center">
               <div>
                 <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">Monitoreo de implementaciones</p>
-                <h1 className="mt-3 max-w-3xl text-4xl font-semibold tracking-normal text-white sm:text-5xl">
+                <h1 className="mt-3 max-w-3xl text-3xl font-semibold tracking-normal text-white sm:text-5xl">
                   IMPLEMENTATOR controla avance, riesgos y go live en una sola vista.
                 </h1>
                 <p className="mt-4 max-w-2xl text-slate-400">

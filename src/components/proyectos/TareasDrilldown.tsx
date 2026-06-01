@@ -1,7 +1,8 @@
-import { ChevronDown, ChevronRight, FolderKanban, ListChecks, MessageSquare, Search } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, FolderKanban, ListChecks, MessageSquare, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAppStore, calcPctFase, calcPctProyecto } from '../../store/useAppStore';
 import { Tarea } from '../../types';
+import { diasVencida, tareaEstaVencida } from '../../utils/taskHealth';
 import { GlassCard } from '../ui/GlassCard';
 import { ProgressBar } from '../ui/ProgressBar';
 import { StatusBadge } from '../ui/StatusBadge';
@@ -67,16 +68,29 @@ export function TareasDrilldown({ tareas, showProjectLevel = true, query = '' }:
 
   const renderTask = (tarea: Tarea) => {
     const proyecto = proyectos.find((p) => p.id === tarea.proyectoId);
+    const vencida = tareaEstaVencida(tarea);
+    const overdueDays = diasVencida(tarea);
     return (
       <button
         key={tarea.id}
-        className="group w-full rounded-lg border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/35 hover:bg-white/8"
+        className={[
+          'group w-full rounded-lg border p-4 text-left transition',
+          vencida
+            ? 'border-red-400/50 bg-red-500/15 shadow-[0_0_34px_rgba(239,68,68,0.14)] hover:border-red-300/80 hover:bg-red-500/20'
+            : 'border-white/10 bg-white/[0.035] hover:border-emerald-300/35 hover:bg-white/8',
+        ].join(' ')}
         onClick={() => setSelected(tarea)}
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <StatusBadge estado={tarea.estado} ping={tarea.estado === 'bloqueada'} />
+              {vencida ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-2.5 py-1 text-xs font-semibold text-white">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Vencida {overdueDays}d
+                </span>
+              ) : null}
               {tarea.esMilestone ? <span className="rounded-full bg-amber-400/12 px-2.5 py-1 text-xs font-medium text-amber-100">Milestone</span> : null}
             </div>
             <h4 className="font-semibold text-white transition group-hover:text-emerald-100">{tarea.nombre}</h4>
@@ -85,9 +99,9 @@ export function TareasDrilldown({ tareas, showProjectLevel = true, query = '' }:
               Responsable: {tarea.responsable}
             </p>
           </div>
-          <div className="text-right text-sm text-slate-400">
-            <p>{tarea.fechaInicioPlan}</p>
-            <p>{tarea.fechaFinPlan}</p>
+          <div className={`text-left text-sm sm:text-right ${vencida ? 'text-red-100' : 'text-slate-400'}`}>
+            <p>Inicio {tarea.fechaInicioPlan}</p>
+            <p>Fin {tarea.fechaFinPlan}</p>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">

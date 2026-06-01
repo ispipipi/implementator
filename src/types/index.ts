@@ -98,10 +98,11 @@ export interface Alerta {
   id: string;
   proyectoId: string;
   tareaId: string;
-  tipo: 'vencida' | 'proxima_vencer' | 'bloqueada' | 'en_riesgo';
+  tipo: 'vencida' | 'proxima_vencer' | 'bloqueada' | 'en_riesgo' | 'reasignada';
   mensaje: string;
   leida: boolean;
   creadaEn: string;
+  destinatario?: string;
 }
 
 export type TipoDocumentoExpediente =

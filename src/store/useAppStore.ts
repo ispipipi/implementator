@@ -8,6 +8,7 @@ import { GOOGLE_SHEETS_GANTT_URL } from '../data/googleSheetsSource';
 import { Alerta, AppState, ExpedienteProyecto, Fase, Tarea } from '../types';
 import { saveWorkspaceState } from '../services/remoteState';
 import { calcPctFase, calcPctProyecto, semaforoProyecto } from '../utils/progressCalc';
+import { normalizarResponsable } from '../utils/assignee';
 
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
 
@@ -370,9 +371,18 @@ export const useAppStore = create<AppState>()(
       },
 
       recalcularAlertas: () => {
-        const { tareas, diasAnticipacionAlerta } = get();
+        const { tareas, diasAnticipacionAlerta, alertas } = get();
         const hoy = new Date();
+        const alertasExistentes = new Map(alertas.map((alerta) => [alerta.id, alerta]));
         const nuevasAlertas: Alerta[] = [];
+        const agregarAlerta = (alerta: Omit<Alerta, 'leida' | 'creadaEn'>) => {
+          const existente = alertasExistentes.get(alerta.id);
+          nuevasAlertas.push({
+            ...alerta,
+            leida: existente?.leida ?? false,
+            creadaEn: existente?.creadaEn ?? new Date().toISOString(),
+          });
+        };
 
         tareas.forEach((tarea) => {
           if (tarea.estado === 'completada' || tarea.estado === 'cancelada') return;
@@ -380,36 +390,47 @@ export const useAppStore = create<AppState>()(
           const diasDif = differenceInDays(finPlan, hoy);
 
           if (diasDif < 0) {
-            nuevasAlertas.push({
+            agregarAlerta({
               id: `alerta-vencida-${tarea.id}`,
               proyectoId: tarea.proyectoId,
               tareaId: tarea.id,
               tipo: 'vencida',
               mensaje: `Tarea vencida hace ${Math.abs(diasDif)} día(s): ${tarea.nombre}`,
-              leida: false,
-              creadaEn: new Date().toISOString(),
             });
           } else if (diasDif <= diasAnticipacionAlerta) {
-            nuevasAlertas.push({
+            agregarAlerta({
               id: `alerta-proxima-${tarea.id}`,
               proyectoId: tarea.proyectoId,
               tareaId: tarea.id,
               tipo: 'proxima_vencer',
               mensaje: `Vence en ${diasDif} día(s): ${tarea.nombre}`,
-              leida: false,
-              creadaEn: new Date().toISOString(),
             });
           }
 
           if (tarea.estado === 'bloqueada') {
-            nuevasAlertas.push({
+            agregarAlerta({
               id: `alerta-bloqueada-${tarea.id}`,
               proyectoId: tarea.proyectoId,
               tareaId: tarea.id,
               tipo: 'bloqueada',
               mensaje: `Tarea bloqueada: ${tarea.nombre}`,
-              leida: false,
-              creadaEn: new Date().toISOString(),
+            });
+          }
+
+          const cambiosResponsable = (tarea.historial ?? []).filter((item) => item.campo === 'responsable');
+          const ultimoCambioResponsable = cambiosResponsable[cambiosResponsable.length - 1];
+          const responsableActual = normalizarResponsable(tarea.responsable);
+          const responsableNuevo = normalizarResponsable(ultimoCambioResponsable?.valorNuevo);
+          const responsableAnterior = normalizarResponsable(ultimoCambioResponsable?.valorAnterior);
+
+          if (ultimoCambioResponsable && responsableActual && responsableActual === responsableNuevo && responsableNuevo !== responsableAnterior) {
+            agregarAlerta({
+              id: `alerta-reasignada-${tarea.id}-${ultimoCambioResponsable.fecha}`,
+              proyectoId: tarea.proyectoId,
+              tareaId: tarea.id,
+              tipo: 'reasignada',
+              mensaje: `Nueva tarea asignada a ${tarea.responsable}: ${tarea.nombre}`,
+              destinatario: tarea.responsable,
             });
           }
         });

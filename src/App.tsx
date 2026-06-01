@@ -32,7 +32,7 @@ function App() {
     <div className="min-h-screen">
       <LoginView />
       <Header />
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-3 pb-24 pt-5 sm:px-6 sm:py-6 lg:px-8">
         {vista === 'dashboard' ? <DashboardView /> : null}
         {vista === 'proyectos' ? <ProyectosList /> : null}
         {vista === 'proyecto' || vista === 'fase' ? <ProyectoDetail /> : null}

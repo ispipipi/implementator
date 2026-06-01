@@ -1,10 +1,12 @@
-import { CalendarDays, CheckCircle2, Clock3, FileText, Flag, Lock, MessageCirclePlus, MessageSquare, Save, Send, UserRound } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { AlertTriangle, Ban, CalendarDays, CheckCircle2, CircleDashed, Clock3, FileText, Flag, Lock, MessageCirclePlus, MessageSquare, OctagonAlert, PlayCircle, Save, Send, UserRound } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Drawer } from '../ui/Drawer';
 import { EstadoTarea, Tarea } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { usePermisos } from '../../hooks/usePermisos';
 import { StatusBadge } from '../ui/StatusBadge';
+import { responsableAsignadoAUsuario } from '../../utils/assignee';
+import { diasVencida, tareaEstaVencida } from '../../utils/taskHealth';
 
 type Props = {
   tarea: Tarea | null;
@@ -12,9 +14,41 @@ type Props = {
 };
 
 const estados: EstadoTarea[] = ['pendiente', 'en_proceso', 'completada', 'bloqueada', 'cancelada'];
+const estadoConfig: Record<EstadoTarea, { label: string; hint: string; icon: typeof CheckCircle2; active: string }> = {
+  pendiente: {
+    label: 'Pendiente',
+    hint: 'Aun no inicia',
+    icon: CircleDashed,
+    active: 'border-slate-300/40 bg-slate-300/15 text-white',
+  },
+  en_proceso: {
+    label: 'Iniciar',
+    hint: 'Estoy trabajando',
+    icon: PlayCircle,
+    active: 'border-blue-300/50 bg-blue-400/15 text-blue-100',
+  },
+  completada: {
+    label: 'Completar',
+    hint: 'Tarea lista',
+    icon: CheckCircle2,
+    active: 'border-emerald-300/50 bg-emerald-400/15 text-emerald-100',
+  },
+  bloqueada: {
+    label: 'Bloquear',
+    hint: 'Requiere ayuda',
+    icon: OctagonAlert,
+    active: 'border-amber-300/60 bg-amber-400/15 text-amber-100',
+  },
+  cancelada: {
+    label: 'Cancelar',
+    hint: 'No aplica',
+    icon: Ban,
+    active: 'border-red-300/50 bg-red-400/15 text-red-100',
+  },
+};
 
 export function TareaEditDrawer({ tarea, onClose }: Props) {
-  const { actualizarTarea, usuarioActivo, proyectos, fases, tareas } = useAppStore();
+  const { actualizarTarea, usuarioActivo, proyectos, fases, tareas, perfiles, ejecutivos } = useAppStore();
   const { puedeCambiarEstadoTarea, puedeEditarDatosTarea } = usePermisos();
   const [form, setForm] = useState({
     estado: 'pendiente' as EstadoTarea,
@@ -27,6 +61,20 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
   const tareaActual = tarea ? tareas.find((item) => item.id === tarea.id) ?? tarea : null;
   const proyecto = tareaActual ? proyectos.find((p) => p.id === tareaActual.proyectoId) : null;
   const fase = tareaActual ? fases.find((f) => f.id === tareaActual.faseId) : null;
+  const vencida = tareaActual ? tareaEstaVencida(tareaActual) : false;
+  const overdueDays = tareaActual ? diasVencida(tareaActual) : 0;
+  const puedeReasignar =
+    !!usuarioActivo &&
+    !!tareaActual &&
+    (puedeEditarDatosTarea || responsableAsignadoAUsuario(tareaActual.responsable, usuarioActivo));
+  const personasAsignables = useMemo(() => {
+    const byName = new Map<string, string>();
+    [...perfiles.filter((perfil) => perfil.activo !== false), ...ejecutivos].forEach((persona) => {
+      if (persona.nombre.trim()) byName.set(persona.nombre, persona.nombre);
+    });
+    if (tareaActual?.responsable) byName.set(tareaActual.responsable, tareaActual.responsable);
+    return Array.from(byName.values()).sort((a, b) => a.localeCompare(b));
+  }, [ejecutivos, perfiles, tareaActual?.responsable]);
 
   useEffect(() => {
     if (!tareaActual) return;
@@ -59,12 +107,15 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
       ...(comentarios ? { comentarios } : {}),
       ...(puedeEditarDatosTarea
         ? {
-            responsable: form.responsable,
             fechaInicioPlan: form.fechaInicioPlan,
             fechaFinPlan: form.fechaFinPlan,
           }
         : {}),
     };
+
+    if (puedeReasignar && form.responsable !== tareaActual.responsable) {
+      cambios.responsable = form.responsable;
+    }
 
     if (form.estado === 'en_proceso' || form.estado === 'completada') {
       cambios.fechaInicioReal = tareaActual.fechaInicioReal ?? hoy;
@@ -91,11 +142,17 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
         <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             {tareaActual ? <StatusBadge estado={form.estado} ping={form.estado === 'bloqueada'} /> : null}
+            {vencida ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_0_20px_rgba(239,68,68,0.25)]">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Vencida hace {overdueDays} dia(s)
+              </span>
+            ) : null}
             {tareaActual?.esMilestone ? <span className="rounded-full bg-amber-400/12 px-2.5 py-1 text-xs font-medium text-amber-100">Milestone</span> : null}
             {!puedeEditarDatosTarea ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 text-xs text-slate-400">
                 <Lock className="h-3.5 w-3.5" />
-                Solo estado y comentarios
+                {puedeReasignar ? 'Estado, reasignacion y comentarios' : 'Solo estado y comentarios'}
               </span>
             ) : null}
           </div>
@@ -120,18 +177,47 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
           <div className="grid gap-4">
             <label className="grid gap-2 text-sm text-slate-300">
               Estado
-              <select disabled={!puedeCambiarEstadoTarea} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.estado} onChange={(e) => setForm((s) => ({ ...s, estado: e.target.value as EstadoTarea }))}>
-                {estados.map((estado) => (
-                  <option key={estado} value={estado}>
-                    {estado.replace('_', ' ')}
-                  </option>
-                ))}
-              </select>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {estados.map((estado) => {
+                  const config = estadoConfig[estado];
+                  const Icon = config.icon;
+                  const active = form.estado === estado;
+                  return (
+                    <button
+                      key={estado}
+                      disabled={!puedeCambiarEstadoTarea}
+                      className={[
+                        'flex min-h-16 items-center gap-3 rounded-lg border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-55',
+                        active ? config.active : 'border-white/10 bg-white/[0.035] text-slate-300 hover:border-emerald-300/35 hover:bg-white/8',
+                      ].join(' ')}
+                      onClick={() => setForm((s) => ({ ...s, estado }))}
+                      type="button"
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/8">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span>
+                        <span className="block font-semibold">{config.label}</span>
+                        <span className="text-xs text-slate-400">{config.hint}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </label>
 
             <label className="grid gap-2 text-sm text-slate-300">
-              Responsable
-              <input disabled={!puedeEditarDatosTarea} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.responsable} onChange={(e) => setForm((s) => ({ ...s, responsable: e.target.value }))} />
+              Reasignar responsable
+              <select disabled={!puedeReasignar} className="rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-white disabled:cursor-not-allowed disabled:opacity-60" value={form.responsable} onChange={(e) => setForm((s) => ({ ...s, responsable: e.target.value }))}>
+                {personasAsignables.map((persona) => (
+                  <option key={persona} value={persona}>
+                    {persona}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-slate-500">
+                {puedeReasignar ? 'Al guardar, el nuevo responsable vera una alerta de asignacion.' : 'Solo el administrador o el responsable actual puede reasignar esta tarea.'}
+              </span>
             </label>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -204,7 +290,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
           </div>
         ) : null}
 
-        <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 hover:bg-emerald-300" onClick={save}>
+        <button className="sticky bottom-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 shadow-[0_16px_32px_rgba(16,185,129,0.24)] hover:bg-emerald-300" onClick={save}>
           <Save className="h-4 w-4" />
           {form.comentarioNuevo.trim() ? <Send className="h-4 w-4" /> : null}
           {puedeEditarDatosTarea ? 'Guardar cambios' : 'Guardar estado/comentario'}
