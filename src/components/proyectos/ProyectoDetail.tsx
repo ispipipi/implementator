@@ -1,4 +1,4 @@
-import { AlertTriangle, Building2, CalendarDays, Edit3, LayoutGrid, ListChecks, TimerReset } from 'lucide-react';
+import { AlertTriangle, Building2, CalendarDays, Edit3, FolderArchive, LayoutGrid, ListChecks, TimerReset } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { usePermisos } from '../../hooks/usePermisos';
 import { useAppStore, calcPctProyecto, semaforoProyecto } from '../../store/useAppStore';
@@ -10,10 +10,11 @@ import { GlassCard } from '../ui/GlassCard';
 import { ProgressRing } from '../ui/ProgressRing';
 import { TrafficLightOrb } from '../ui/TrafficLightOrb';
 import { FaseCard } from './FaseCard';
+import { ProyectoExpediente } from './ProyectoExpediente';
 import { ProyectoEditDrawer } from './ProyectoEditDrawer';
 import { TareasList } from './TareasList';
 
-type Tab = 'tareas' | 'fases' | 'gantt' | 'alertas';
+type Tab = 'tareas' | 'fases' | 'gantt' | 'expediente' | 'alertas';
 
 export function ProyectoDetail() {
   const { proyectoActivoId, faseActivaId, proyectos, fases, tareas, alertas, setVista } = useAppStore();
@@ -85,6 +86,7 @@ export function ProyectoDetail() {
           ['tareas', ListChecks, 'Todas las tareas'],
           ['fases', LayoutGrid, 'Fases'],
           ['gantt', TimerReset, 'Gantt'],
+          ['expediente', FolderArchive, 'Expediente'],
           ['alertas', AlertTriangle, 'Alertas'],
         ].map(([id, Icon, label]) => (
           <button key={id as string} className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium ${tab === id ? 'border-emerald-300/40 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-slate-300 hover:bg-white/8'}`} onClick={() => setTab(id as Tab)}>
@@ -135,6 +137,7 @@ export function ProyectoDetail() {
       ) : null}
 
       {tab === 'gantt' ? <GanttView tareas={tareasFase} /> : null}
+      {tab === 'expediente' ? <ProyectoExpediente proyectoId={proyecto.id} /> : null}
       {tab === 'alertas' ? <AlertPanel /> : null}
       <ProyectoEditDrawer proyecto={editing} onClose={() => setEditing(null)} />
     </div>

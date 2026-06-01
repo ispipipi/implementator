@@ -5,7 +5,7 @@ import { PLANTILLA_FASES } from '../data/plantillaFases';
 import { SEED_DATA } from '../data/seedData';
 import { PERFILES_SEED } from '../data/perfiles';
 import { GOOGLE_SHEETS_GANTT_URL } from '../data/googleSheetsSource';
-import { Alerta, AppState, Fase, Tarea } from '../types';
+import { Alerta, AppState, ExpedienteProyecto, Fase, Tarea } from '../types';
 import { saveWorkspaceState } from '../services/remoteState';
 import { calcPctFase, calcPctProyecto, semaforoProyecto } from '../utils/progressCalc';
 
@@ -16,6 +16,8 @@ const guardarRemoto = (state: AppState, motivo: string) => {
     console.warn('No se pudo guardar el estado remoto', error);
   });
 };
+
+const expedienteVacio = (): ExpedienteProyecto => ({ documentos: [], accesos: [] });
 
 const generarPlanProyecto = (proyectoId: string, fechaInicio: string, responsable: string) => {
   const fases: Fase[] = [];
@@ -75,6 +77,7 @@ export const useAppStore = create<AppState>()(
       fases: SEED_DATA.fases,
       tareas: SEED_DATA.tareas,
       alertas: [],
+      expedientes: {},
       vista: 'dashboard',
       proyectoActivoId: null,
       faseActivaId: null,
@@ -105,6 +108,7 @@ export const useAppStore = create<AppState>()(
           fases: estado.fases ?? get().fases,
           tareas: estado.tareas ?? get().tareas,
           alertas: estado.alertas ?? get().alertas,
+          expedientes: estado.expedientes ?? get().expedientes,
           diasAnticipacionAlerta: estado.diasAnticipacionAlerta ?? get().diasAnticipacionAlerta,
           fuenteGoogleSheetsUrl: estado.fuenteGoogleSheetsUrl ?? get().fuenteGoogleSheetsUrl,
           sincronizadoRemotoEn: new Date().toISOString(),
@@ -281,6 +285,90 @@ export const useAppStore = create<AppState>()(
         guardarRemoto(get(), 'actualizar_ejecutivo');
       },
 
+      agregarDocumentoExpediente: (proyectoId, documento) => {
+        const usuario = get().usuarioActivo?.nombre ?? 'Sistema';
+        set((s) => {
+          const expediente = s.expedientes[proyectoId] ?? expedienteVacio();
+          return {
+            expedientes: {
+              ...s.expedientes,
+              [proyectoId]: {
+                ...expediente,
+                documentos: [
+                  ...expediente.documentos,
+                  {
+                    ...documento,
+                    id: makeId('doc'),
+                    creadoPor: usuario,
+                    creadoEn: new Date().toISOString(),
+                  },
+                ],
+              },
+            },
+          };
+        });
+        guardarRemoto(get(), 'agregar_documento_expediente');
+      },
+
+      eliminarDocumentoExpediente: (proyectoId, documentoId) => {
+        set((s) => {
+          const expediente = s.expedientes[proyectoId] ?? expedienteVacio();
+          return {
+            expedientes: {
+              ...s.expedientes,
+              [proyectoId]: {
+                ...expediente,
+                documentos: expediente.documentos.filter((documento) => documento.id !== documentoId),
+              },
+            },
+          };
+        });
+        guardarRemoto(get(), 'eliminar_documento_expediente');
+      },
+
+      guardarAccesoExpediente: (proyectoId, acceso) => {
+        const usuario = get().usuarioActivo?.nombre ?? 'Sistema';
+        const id = acceso.id ?? makeId('acceso');
+        set((s) => {
+          const expediente = s.expedientes[proyectoId] ?? expedienteVacio();
+          const nextAcceso = {
+            ...acceso,
+            id,
+            actualizadoPor: usuario,
+            actualizadoEn: new Date().toISOString(),
+          };
+          const existe = expediente.accesos.some((item) => item.id === id);
+          return {
+            expedientes: {
+              ...s.expedientes,
+              [proyectoId]: {
+                ...expediente,
+                accesos: existe
+                  ? expediente.accesos.map((item) => (item.id === id ? nextAcceso : item))
+                  : [...expediente.accesos, nextAcceso],
+              },
+            },
+          };
+        });
+        guardarRemoto(get(), 'guardar_acceso_expediente');
+      },
+
+      eliminarAccesoExpediente: (proyectoId, accesoId) => {
+        set((s) => {
+          const expediente = s.expedientes[proyectoId] ?? expedienteVacio();
+          return {
+            expedientes: {
+              ...s.expedientes,
+              [proyectoId]: {
+                ...expediente,
+                accesos: expediente.accesos.filter((acceso) => acceso.id !== accesoId),
+              },
+            },
+          };
+        });
+        guardarRemoto(get(), 'eliminar_acceso_expediente');
+      },
+
       recalcularAlertas: () => {
         const { tareas, diasAnticipacionAlerta } = get();
         const hoy = new Date();
@@ -340,6 +428,7 @@ export const useAppStore = create<AppState>()(
         fases: state.fases,
         tareas: state.tareas,
         alertas: state.alertas,
+        expedientes: state.expedientes,
         diasAnticipacionAlerta: state.diasAnticipacionAlerta,
         tema: state.tema,
         fuenteGoogleSheetsUrl: state.fuenteGoogleSheetsUrl,
