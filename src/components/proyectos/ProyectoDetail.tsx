@@ -1,7 +1,7 @@
 import { AlertTriangle, Building2, CalendarDays, Edit3, FolderArchive, LayoutGrid, ListChecks, TimerReset } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { usePermisos } from '../../hooks/usePermisos';
-import { useAppStore, calcPctProyecto, semaforoProyecto } from '../../store/useAppStore';
+import { useAppStore, calcCumplimientoGanttProyecto, calcPctPlanificadoProyecto, calcPctProyecto, semaforoCumplimientoProyecto } from '../../store/useAppStore';
 import { Proyecto } from '../../types';
 import { getClientInfo } from '../../utils/clientInfo';
 import { AlertPanel } from '../layout/AlertPanel';
@@ -17,7 +17,7 @@ import { TareasList } from './TareasList';
 type Tab = 'tareas' | 'fases' | 'gantt' | 'expediente' | 'alertas';
 
 export function ProyectoDetail() {
-  const { proyectoActivoId, faseActivaId, proyectos, fases, tareas, alertas, setVista } = useAppStore();
+  const { proyectoActivoId, faseActivaId, proyectos, fases, tareas, setVista } = useAppStore();
   const [tab, setTab] = useState<Tab>('fases');
   const [editing, setEditing] = useState<Proyecto | null>(null);
   const { puedeEditarProyectos } = usePermisos();
@@ -39,7 +39,9 @@ export function ProyectoDetail() {
   }
 
   const pct = calcPctProyecto(proyecto.id, tareas);
-  const estado = semaforoProyecto(proyecto.id, alertas);
+  const cumplimiento = calcCumplimientoGanttProyecto(proyecto.id, tareas);
+  const planificado = calcPctPlanificadoProyecto(proyecto.id, tareas);
+  const estado = semaforoCumplimientoProyecto(proyecto.id, tareas);
   const info = getClientInfo(proyecto);
 
   return (
@@ -48,9 +50,10 @@ export function ProyectoDetail() {
         <div className="grid gap-6 lg:grid-cols-[1fr_160px] lg:items-center">
           <div>
             <div className="mb-4 flex flex-wrap items-center gap-3">
-              <TrafficLightOrb estado={estado} size="md" label={estado === 'verde' ? 'En control' : estado === 'amarillo' ? 'Atención' : 'Crítico'} />
+              <TrafficLightOrb estado={estado} size="md" label={`Gantt ${cumplimiento}%`} />
               <span className="rounded-full bg-white/8 px-3 py-1 text-sm text-slate-300">{proyecto.sistemaOrigen}</span>
               <span className="rounded-full bg-white/8 px-3 py-1 text-sm text-slate-300">{proyecto.estado}</span>
+              <span className="rounded-full bg-white/8 px-3 py-1 text-sm text-slate-300">Plan a hoy {planificado}%</span>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-3xl font-semibold text-white">{proyecto.nombre}</h1>
@@ -75,8 +78,15 @@ export function ProyectoDetail() {
               <span>RUT: {proyecto.rut}</span>
             </div>
           </div>
-          <div className="justify-self-start lg:justify-self-end">
-            <ProgressRing value={pct} size={128} />
+          <div className="grid grid-cols-2 gap-4 justify-self-start text-center lg:justify-self-end">
+            <div>
+              <ProgressRing value={cumplimiento} size={112} />
+              <p className="mt-2 text-xs text-slate-400">Cumplimiento Gantt</p>
+            </div>
+            <div>
+              <ProgressRing value={pct} size={112} />
+              <p className="mt-2 text-xs text-slate-400">% avance real</p>
+            </div>
           </div>
         </div>
       </GlassCard>

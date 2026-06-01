@@ -7,7 +7,17 @@ import { PERFILES_ACCESO_SEED, PERFILES_SEED } from '../data/perfiles';
 import { GOOGLE_SHEETS_GANTT_URL } from '../data/googleSheetsSource';
 import { Alerta, AppState, ExpedienteProyecto, Fase, Tarea } from '../types';
 import { saveWorkspaceState } from '../services/remoteState';
-import { calcPctFase, calcPctProyecto, semaforoProyecto } from '../utils/progressCalc';
+import {
+  calcCumplimientoGanttFase,
+  calcCumplimientoGanttProyecto,
+  calcPctFase,
+  calcPctPlanificadoFase,
+  calcPctPlanificadoProyecto,
+  calcPctProyecto,
+  semaforoCumplimientoFase,
+  semaforoCumplimientoProyecto,
+  semaforoProyecto,
+} from '../utils/progressCalc';
 import { normalizarResponsable } from '../utils/assignee';
 
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
@@ -444,8 +454,10 @@ export const useAppStore = create<AppState>()(
 
         tareas.forEach((tarea) => {
           if (tarea.estado === 'completada' || tarea.estado === 'cancelada') return;
+          const inicioPlan = parseISO(tarea.fechaInicioPlan);
           const finPlan = parseISO(tarea.fechaFinPlan);
           const diasDif = differenceInDays(finPlan, hoy);
+          const diasInicio = differenceInDays(inicioPlan, hoy);
 
           if (diasDif < 0) {
             agregarAlerta({
@@ -453,7 +465,7 @@ export const useAppStore = create<AppState>()(
               proyectoId: tarea.proyectoId,
               tareaId: tarea.id,
               tipo: 'vencida',
-              mensaje: `Tarea vencida hace ${Math.abs(diasDif)} día(s): ${tarea.nombre}`,
+              mensaje: `Incumplimiento Gantt: tarea vencida hace ${Math.abs(diasDif)} día(s): ${tarea.nombre}`,
             });
           } else if (diasDif <= diasAnticipacionAlerta) {
             agregarAlerta({
@@ -461,7 +473,17 @@ export const useAppStore = create<AppState>()(
               proyectoId: tarea.proyectoId,
               tareaId: tarea.id,
               tipo: 'proxima_vencer',
-              mensaje: `Vence en ${diasDif} día(s): ${tarea.nombre}`,
+              mensaje: `Riesgo Gantt: vence en ${diasDif} día(s): ${tarea.nombre}`,
+            });
+          }
+
+          if (tarea.estado === 'pendiente' && diasInicio < 0) {
+            agregarAlerta({
+              id: `alerta-inicio-plan-${tarea.id}`,
+              proyectoId: tarea.proyectoId,
+              tareaId: tarea.id,
+              tipo: 'en_riesgo',
+              mensaje: `Riesgo Gantt: debio iniciar hace ${Math.abs(diasInicio)} día(s): ${tarea.nombre}`,
             });
           }
 
@@ -471,7 +493,7 @@ export const useAppStore = create<AppState>()(
               proyectoId: tarea.proyectoId,
               tareaId: tarea.id,
               tipo: 'bloqueada',
-              mensaje: `Tarea bloqueada: ${tarea.nombre}`,
+              mensaje: `Incumplimiento Gantt: tarea bloqueada: ${tarea.nombre}`,
             });
           }
 
@@ -517,4 +539,14 @@ export const useAppStore = create<AppState>()(
   ),
 );
 
-export { calcPctFase, calcPctProyecto, semaforoProyecto };
+export {
+  calcCumplimientoGanttFase,
+  calcCumplimientoGanttProyecto,
+  calcPctFase,
+  calcPctPlanificadoFase,
+  calcPctPlanificadoProyecto,
+  calcPctProyecto,
+  semaforoCumplimientoFase,
+  semaforoCumplimientoProyecto,
+  semaforoProyecto,
+};

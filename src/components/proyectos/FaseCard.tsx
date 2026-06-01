@@ -1,9 +1,10 @@
 import { Calendar, ChevronRight } from 'lucide-react';
 import { Fase, Tarea } from '../../types';
-import { useAppStore, calcPctFase } from '../../store/useAppStore';
+import { useAppStore, calcCumplimientoGanttFase, calcPctFase, calcPctPlanificadoFase, semaforoCumplimientoFase } from '../../store/useAppStore';
 import { GlassCard } from '../ui/GlassCard';
 import { ProgressBar } from '../ui/ProgressBar';
 import { StatusBadge } from '../ui/StatusBadge';
+import { TrafficLightOrb } from '../ui/TrafficLightOrb';
 
 type Props = {
   fase: Fase;
@@ -13,6 +14,9 @@ type Props = {
 export function FaseCard({ fase, tareas }: Props) {
   const setVista = useAppStore((s) => s.setVista);
   const pct = calcPctFase(fase.id, tareas);
+  const cumplimiento = calcCumplimientoGanttFase(fase.id, tareas);
+  const planificado = calcPctPlanificadoFase(fase.id, tareas);
+  const semaforo = semaforoCumplimientoFase(fase.id, tareas);
   const tareasFase = tareas.filter((t) => t.faseId === fase.id);
   const estado = pct === 100 ? 'completada' : tareasFase.some((t) => t.estado === 'en_proceso') ? 'en_proceso' : 'pendiente';
 
@@ -24,7 +28,10 @@ export function FaseCard({ fase, tareas }: Props) {
             <span className="rounded-md bg-white/8 px-2 py-1 text-xs font-semibold text-emerald-200">{fase.codigo}</span>
             <h3 className="mt-3 text-lg font-semibold text-white">{fase.nombre}</h3>
           </div>
-          <ChevronRight className="h-5 w-5 text-slate-500" />
+          <div className="flex items-center gap-3">
+            <TrafficLightOrb estado={semaforo} size="sm" />
+            <ChevronRight className="h-5 w-5 text-slate-500" />
+          </div>
         </div>
         <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-slate-400">
           <span className="inline-flex items-center gap-1.5">
@@ -34,10 +41,14 @@ export function FaseCard({ fase, tareas }: Props) {
           <StatusBadge estado={estado} />
         </div>
         <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="text-slate-400">{tareasFase.length} tareas</span>
-          <span className="font-semibold text-white">{pct}%</span>
+          <span className="text-slate-400">Cumplimiento Gantt</span>
+          <span className="font-semibold text-white">{cumplimiento}%</span>
         </div>
-        <ProgressBar value={pct} tone={pct === 100 ? 'emerald' : 'blue'} />
+        <ProgressBar value={cumplimiento} tone={semaforo === 'rojo' ? 'red' : semaforo === 'amarillo' ? 'amber' : 'emerald'} />
+        <div className="mt-2 flex justify-between text-xs text-slate-500">
+          <span>{tareasFase.length} tareas</span>
+          <span>Plan {planificado}% · Avance {pct}%</span>
+        </div>
       </button>
     </GlassCard>
   );

@@ -1,7 +1,7 @@
 import { CalendarDays, Edit3, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { usePermisos, useProyectosVisibles } from '../../hooks/usePermisos';
-import { useAppStore, calcPctProyecto, semaforoProyecto } from '../../store/useAppStore';
+import { useAppStore, calcCumplimientoGanttProyecto, calcPctPlanificadoProyecto, calcPctProyecto, semaforoCumplimientoProyecto } from '../../store/useAppStore';
 import { Proyecto } from '../../types';
 import { GlassCard } from '../ui/GlassCard';
 import { ProgressBar } from '../ui/ProgressBar';
@@ -10,7 +10,7 @@ import { ProyectoEditDrawer } from './ProyectoEditDrawer';
 
 export function ProyectosList() {
   const proyectos = useProyectosVisibles();
-  const { tareas, alertas, setVista } = useAppStore();
+  const { tareas, setVista } = useAppStore();
   const { puedeEditarProyectos } = usePermisos();
   const [editing, setEditing] = useState<Proyecto | null>(null);
 
@@ -32,7 +32,9 @@ export function ProyectosList() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {proyectos.map((proyecto) => {
           const pct = calcPctProyecto(proyecto.id, tareas);
-          const estado = semaforoProyecto(proyecto.id, alertas);
+          const cumplimiento = calcCumplimientoGanttProyecto(proyecto.id, tareas);
+          const planificado = calcPctPlanificadoProyecto(proyecto.id, tareas);
+          const estado = semaforoCumplimientoProyecto(proyecto.id, tareas);
 
           return (
             <GlassCard key={proyecto.id} interactive className="p-5">
@@ -62,10 +64,15 @@ export function ProyectosList() {
 
                 <div className="mt-auto">
                   <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="text-slate-400">Avance total</span>
+                    <span className="text-slate-400">Cumplimiento Gantt</span>
+                    <span className="font-semibold text-white">{cumplimiento}%</span>
+                  </div>
+                  <ProgressBar value={cumplimiento} tone={estado === 'rojo' ? 'red' : estado === 'amarillo' ? 'amber' : 'emerald'} />
+                  <div className="mt-3 flex items-center justify-between text-sm">
+                    <span className="text-slate-400">% avance real</span>
                     <span className="font-semibold text-white">{pct}%</span>
                   </div>
-                  <ProgressBar value={pct} tone={estado === 'rojo' ? 'red' : estado === 'amarillo' ? 'amber' : 'emerald'} />
+                  <p className="mt-2 text-xs text-slate-500">Planificado a hoy: {planificado}%</p>
                 </div>
               </div>
             </GlassCard>

@@ -1,7 +1,17 @@
 import { AlertTriangle, ArrowLeft, ArrowRight, BarChart3, CheckCircle2, Clock3, FolderKanban, Gauge, ListChecks } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { usePermisos, useProyectosVisibles } from '../../hooks/usePermisos';
-import { useAppStore, calcPctFase, calcPctProyecto, semaforoProyecto } from '../../store/useAppStore';
+import {
+  useAppStore,
+  calcCumplimientoGanttFase,
+  calcCumplimientoGanttProyecto,
+  calcPctFase,
+  calcPctPlanificadoFase,
+  calcPctPlanificadoProyecto,
+  calcPctProyecto,
+  semaforoCumplimientoFase,
+  semaforoCumplimientoProyecto,
+} from '../../store/useAppStore';
 import { Alerta, EstadoSemaforo, Fase, Proyecto, Tarea } from '../../types';
 import { alertaVisibleParaUsuario } from '../../utils/assignee';
 import { GlassCard } from '../ui/GlassCard';
@@ -45,14 +55,6 @@ const sortTareas = (a: Tarea, b: Tarea) => a.fechaInicioPlan.localeCompare(b.fec
 const semaforoPrioridad: Record<EstadoSemaforo, number> = { rojo: 0, amarillo: 1, verde: 2 };
 const semaforoText: Record<EstadoSemaforo, string> = { rojo: 'Critico', amarillo: 'Atencion', verde: 'En control' };
 
-const semaforoFase = (faseId: string, tareas: Tarea[], alertas: Alerta[]): EstadoSemaforo => {
-  const tareaIds = new Set(tareas.filter((tarea) => tarea.faseId === faseId).map((tarea) => tarea.id));
-  const alertasFase = alertas.filter((alerta) => tareaIds.has(alerta.tareaId) && !alerta.leida);
-  if (alertasFase.some((alerta) => alerta.tipo === 'vencida')) return 'rojo';
-  if (alertasFase.some((alerta) => alerta.tipo === 'proxima_vencer' || alerta.tipo === 'bloqueada' || alerta.tipo === 'en_riesgo')) return 'amarillo';
-  return 'verde';
-};
-
 export function DashboardView() {
   const proyectos = useProyectosVisibles();
   const { tareas, fases, alertas, setVista, usuarioActivo } = useAppStore();
@@ -75,7 +77,8 @@ export function DashboardView() {
     const tareasProyecto = tareas.filter((t) => t.proyectoId === proyectoCliente.id);
     const fasesProyecto = fases.filter((f) => f.proyectoId === proyectoCliente.id).sort((a, b) => a.orden - b.orden);
     const avance = calcPctProyecto(proyectoCliente.id, tareas);
-    const estado = semaforoProyecto(proyectoCliente.id, alertas);
+    const cumplimiento = calcCumplimientoGanttProyecto(proyectoCliente.id, tareas);
+    const estado = semaforoCumplimientoProyecto(proyectoCliente.id, tareas);
 
     return (
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
@@ -99,8 +102,9 @@ export function DashboardView() {
                 </div>
               </div>
               <div className="flex flex-col items-center gap-4">
-                <TrafficLightOrb estado={estado} size="lg" label={estado === 'verde' ? 'En control' : estado === 'amarillo' ? 'Atencion' : 'Critico'} />
+                <TrafficLightOrb estado={estado} size="lg" label={`Gantt ${cumplimiento}%`} />
                 <ProgressRing value={avance} size={126} />
+                <p className="text-sm text-slate-400">% avance real</p>
               </div>
             </div>
           </GlassCard>
@@ -165,9 +169,12 @@ export function DashboardView() {
   const promedio = proyectos.length
     ? Math.round(proyectos.reduce((acc, p) => acc + calcPctProyecto(p.id, tareas), 0) / proyectos.length)
     : 0;
-  const semaforo = alertas.some((a) => !a.leida && a.tipo === 'vencida')
+  const cumplimientoPromedio = proyectos.length
+    ? Math.round(proyectos.reduce((acc, p) => acc + calcCumplimientoGanttProyecto(p.id, tareas), 0) / proyectos.length)
+    : 100;
+  const semaforo = proyectos.some((p) => semaforoCumplimientoProyecto(p.id, tareas) === 'rojo')
     ? 'rojo'
-    : alertas.some((a) => !a.leida)
+    : proyectos.some((p) => semaforoCumplimientoProyecto(p.id, tareas) === 'amarillo')
       ? 'amarillo'
       : 'verde';
 
@@ -235,10 +242,18 @@ export function DashboardView() {
                   </button>
                 </div>
               </div>
-              <button className="flex flex-col items-center gap-5 rounded-lg p-3 text-center transition hover:bg-white/[0.04] focus:outline-none focus:ring-2 focus:ring-emerald-300/40" onClick={() => abrirKpi('semaforo')}>
-                <TrafficLightOrb estado={semaforo} size="lg" />
-                <ProgressRing value={promedio} size={116} />
-                <p className="text-center text-sm text-slate-400">Avance promedio del portafolio visible</p>
+              <button className="grid gap-5 rounded-lg p-3 text-center transition hover:bg-white/[0.04] focus:outline-none focus:ring-2 focus:ring-emerald-300/40 sm:grid-cols-2 lg:grid-cols-1" onClick={() => abrirKpi('semaforo')}>
+                <div className="flex flex-col items-center gap-3">
+                  <TrafficLightOrb estado={semaforo} size="lg" />
+                  <div>
+                    <p className="text-2xl font-semibold text-white">{cumplimientoPromedio}%</p>
+                    <p className="text-sm text-slate-400">Cumplimiento Gantt</p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-center gap-3">
+                  <ProgressRing value={promedio} size={116} />
+                  <p className="text-sm text-slate-400">% avance real</p>
+                </div>
               </button>
             </div>
           </GlassCard>
@@ -265,11 +280,17 @@ export function DashboardView() {
                     <h3 className="font-semibold text-white">{proyecto.nombre}</h3>
                     <p className="mt-1 text-sm text-slate-400">{proyecto.sistemaOrigen} · Go live {proyecto.fechaGoLive}</p>
                   </div>
-                  <TrafficLightOrb estado={semaforoProyecto(proyecto.id, alertas)} size="sm" />
+                  <TrafficLightOrb estado={semaforoCumplimientoProyecto(proyecto.id, tareas)} size="sm" />
                 </div>
-                <div className="mt-4 flex items-center justify-between text-sm">
-                  <span className="text-slate-400">Avance</span>
+                <div className="mt-4 grid gap-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Cumplimiento Gantt</span>
+                    <span className="font-semibold text-white">{calcCumplimientoGanttProyecto(proyecto.id, tareas)}%</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">% avance real</span>
                   <span className="font-semibold text-white">{calcPctProyecto(proyecto.id, tareas)}%</span>
+                  </div>
                 </div>
               </button>
             </GlassCard>
@@ -331,12 +352,12 @@ function DashboardKpiDetalle({
   const proyectosOrdenados = useMemo(() => {
     if (kpi !== 'semaforo') return proyectosKpi;
     return [...proyectosKpi].sort((a, b) => {
-      const prioridadA = semaforoPrioridad[semaforoProyecto(a.id, alertas)];
-      const prioridadB = semaforoPrioridad[semaforoProyecto(b.id, alertas)];
+      const prioridadA = semaforoPrioridad[semaforoCumplimientoProyecto(a.id, tareas)];
+      const prioridadB = semaforoPrioridad[semaforoCumplimientoProyecto(b.id, tareas)];
       if (prioridadA !== prioridadB) return prioridadA - prioridadB;
       return calcPctProyecto(a.id, tareas) - calcPctProyecto(b.id, tareas);
     });
-  }, [alertas, kpi, proyectosKpi, tareas]);
+  }, [kpi, proyectosKpi, tareas]);
 
   const proyecto = proyectosKpi.find((p) => p.id === projectId) ?? null;
   const fasesProyecto = proyecto
@@ -369,12 +390,12 @@ function DashboardKpiDetalle({
   const fasesOrdenadas = useMemo(() => {
     if (kpi !== 'semaforo') return fasesConDatos;
     return [...fasesConDatos].sort((a, b) => {
-      const prioridadA = semaforoPrioridad[semaforoFase(a.id, tareas, alertas)];
-      const prioridadB = semaforoPrioridad[semaforoFase(b.id, tareas, alertas)];
+      const prioridadA = semaforoPrioridad[semaforoCumplimientoFase(a.id, tareas)];
+      const prioridadB = semaforoPrioridad[semaforoCumplimientoFase(b.id, tareas)];
       if (prioridadA !== prioridadB) return prioridadA - prioridadB;
       return a.orden - b.orden;
     });
-  }, [alertas, fasesConDatos, kpi, tareas]);
+  }, [fasesConDatos, kpi, tareas]);
 
   return (
     <GlassCard className="min-h-[420px] overflow-hidden p-5 sm:p-6">
@@ -416,7 +437,10 @@ function DashboardKpiDetalle({
         <div className="grid gap-3">
           {proyectosOrdenados.length ? (
             proyectosOrdenados.map((item) => {
-              const estado = semaforoProyecto(item.id, alertas);
+              const estado = semaforoCumplimientoProyecto(item.id, tareas);
+              const cumplimiento = calcCumplimientoGanttProyecto(item.id, tareas);
+              const avance = calcPctProyecto(item.id, tareas);
+              const planificado = calcPctPlanificadoProyecto(item.id, tareas);
               const alertasProyecto = alertas.filter((alerta) => alerta.proyectoId === item.id);
               const isSemaforo = kpi === 'semaforo';
 
@@ -434,10 +458,14 @@ function DashboardKpiDetalle({
                     <div className="flex items-center gap-4">
                       <div className="hidden min-w-36 sm:block">
                         <div className="mb-1 flex justify-between text-xs">
-                          <span className="text-slate-500">Avance</span>
-                          <span className="font-semibold text-white">{calcPctProyecto(item.id, tareas)}%</span>
+                          <span className="text-slate-500">Gantt</span>
+                          <span className="font-semibold text-white">{cumplimiento}%</span>
                         </div>
-                        <ProgressBar value={calcPctProyecto(item.id, tareas)} tone={calcPctProyecto(item.id, tareas) === 100 ? 'emerald' : 'blue'} />
+                        <ProgressBar value={cumplimiento} tone={estado === 'rojo' ? 'red' : estado === 'amarillo' ? 'amber' : 'emerald'} />
+                        <div className="mt-2 flex justify-between text-xs text-slate-500">
+                          <span>Plan {planificado}%</span>
+                          <span>Avance {avance}%</span>
+                        </div>
                       </div>
                       <span className={`rounded-full px-3 py-1 text-sm ${isSemaforo && alertasProyecto.length ? 'bg-amber-400/12 text-amber-100' : 'bg-white/8 text-slate-300'}`}>{contadorProyecto(item)}</span>
                       <ArrowRight className="h-5 w-5 text-slate-500" />
@@ -459,7 +487,9 @@ function DashboardKpiDetalle({
             const tareasFaseItem = tareasKpi.filter((tarea) => tarea.faseId === item.id);
             const count = kpi === 'alertas' ? alertasFaseItem.length : tareasFaseItem.length;
             const pct = calcPctFase(item.id, tareas);
-            const estado = semaforoFase(item.id, tareas, alertas);
+            const estado = semaforoCumplimientoFase(item.id, tareas);
+            const cumplimiento = calcCumplimientoGanttFase(item.id, tareas);
+            const planificado = calcPctPlanificadoFase(item.id, tareas);
             const isSemaforo = kpi === 'semaforo';
 
             return (
@@ -477,10 +507,16 @@ function DashboardKpiDetalle({
                   <ArrowRight className="h-5 w-5 text-slate-500" />
                 </div>
                 <div className="mt-4 mb-2 flex items-center justify-between text-sm">
-                  <span className="text-slate-400">Cumplimiento fase</span>
-                  <span className="font-semibold text-white">{pct}%</span>
+                  <span className="text-slate-400">{isSemaforo ? 'Cumplimiento Gantt' : 'Cumplimiento fase'}</span>
+                  <span className="font-semibold text-white">{isSemaforo ? cumplimiento : pct}%</span>
                 </div>
-                <ProgressBar value={pct} tone={pct === 100 ? 'emerald' : 'blue'} />
+                <ProgressBar value={isSemaforo ? cumplimiento : pct} tone={isSemaforo ? (estado === 'rojo' ? 'red' : estado === 'amarillo' ? 'amber' : 'emerald') : pct === 100 ? 'emerald' : 'blue'} />
+                {isSemaforo ? (
+                  <div className="mt-2 flex justify-between text-xs text-slate-500">
+                    <span>Plan {planificado}%</span>
+                    <span>Avance {pct}%</span>
+                  </div>
+                ) : null}
               </button>
             );
           }) : (
