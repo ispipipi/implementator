@@ -6,7 +6,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { Breadcrumb } from './Breadcrumb';
 
 export function Header() {
-  const { usuarioActivo, setVista, tema, alternarTema } = useAppStore();
+  const { usuarioActivo, setVista, tema } = useAppStore();
   const { puedeAdministrar } = usePermisos();
 
   return (
@@ -66,15 +66,14 @@ export function Header() {
                 </button>
               </>
             ) : null}
-            <button
-              className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/8"
-              onClick={alternarTema}
-              aria-label={tema === 'noche' ? 'Cambiar a modo dia' : 'Cambiar a modo noche'}
-              title={tema === 'noche' ? 'Modo dia' : 'Modo noche'}
+            <div
+              className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300"
+              aria-label={tema === 'noche' ? 'Modo noche automatico' : 'Modo dia automatico'}
+              title="Tema automatico segun horario de Chile"
             >
-              {tema === 'noche' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              <span className="hidden sm:inline">{tema === 'noche' ? 'Dia' : 'Noche'}</span>
-            </button>
+              {tema === 'noche' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+              <span className="hidden sm:inline">Auto {tema === 'noche' ? 'Noche' : 'Dia'}</span>
+            </div>
         </div>
         <Breadcrumb />
       </div>

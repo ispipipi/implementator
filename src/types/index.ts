@@ -6,7 +6,7 @@ export type EstadoSemaforo = 'verde' | 'amarillo' | 'rojo';
 
 export type PerfilApp = 'artbpo_admin' | 'artbpo_ejecutivo';
 
-export type PerfilUsuario = PerfilApp | 'tmf' | 'cliente';
+export type PerfilUsuario = PerfilApp | 'tmf' | 'cliente' | 'comercial';
 
 export type TemaApp = 'dia' | 'noche';
 

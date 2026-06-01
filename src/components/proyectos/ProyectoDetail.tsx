@@ -18,7 +18,7 @@ type Tab = 'tareas' | 'fases' | 'gantt' | 'expediente' | 'alertas';
 
 export function ProyectoDetail() {
   const { proyectoActivoId, faseActivaId, proyectos, fases, tareas, alertas, setVista } = useAppStore();
-  const [tab, setTab] = useState<Tab>('tareas');
+  const [tab, setTab] = useState<Tab>('fases');
   const [editing, setEditing] = useState<Proyecto | null>(null);
   const { puedeEditarProyectos } = usePermisos();
   const proyecto = proyectos.find((p) => p.id === proyectoActivoId);
@@ -83,8 +83,8 @@ export function ProyectoDetail() {
 
       <div className="flex flex-wrap gap-2">
         {[
-          ['tareas', ListChecks, 'Todas las tareas'],
           ['fases', LayoutGrid, 'Fases'],
+          ['tareas', ListChecks, 'Todas las tareas'],
           ['gantt', TimerReset, 'Gantt'],
           ['expediente', FolderArchive, 'Expediente'],
           ['alertas', AlertTriangle, 'Alertas'],

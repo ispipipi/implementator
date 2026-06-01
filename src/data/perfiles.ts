@@ -62,4 +62,14 @@ export const PERFILES_SEED: UsuarioActivo[] = [
     activo: true,
     proyectoClienteId: 'agrichile-id',
   },
+  {
+    id: 'comercial-id',
+    nombre: 'Usuario Comercial',
+    iniciales: 'CM',
+    rol: 'Comercial',
+    perfil: 'comercial',
+    color: '#06b6d4',
+    email: '',
+    activo: true,
+  },
 ];

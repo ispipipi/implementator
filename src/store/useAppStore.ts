@@ -20,6 +20,13 @@ const guardarRemoto = (state: AppState, motivo: string) => {
 
 const expedienteVacio = (): ExpedienteProyecto => ({ documentos: [], accesos: [] });
 
+const asegurarPerfilesBase = (perfiles: AppState['perfiles']) => {
+  const ids = new Set(perfiles.map((perfil) => perfil.id));
+  const emails = new Set(perfiles.map((perfil) => perfil.email?.toLowerCase()).filter(Boolean));
+  const faltantes = PERFILES_SEED.filter((perfil) => !ids.has(perfil.id) && (!perfil.email || !emails.has(perfil.email.toLowerCase())));
+  return faltantes.length ? [...perfiles, ...faltantes] : perfiles;
+};
+
 const generarPlanProyecto = (proyectoId: string, fechaInicio: string, responsable: string) => {
   const fases: Fase[] = [];
   const tareas: Tarea[] = [];
@@ -103,7 +110,7 @@ export const useAppStore = create<AppState>()(
 
       aplicarEstadoCompartido: (estado) =>
         set({
-          perfiles: estado.perfiles ?? get().perfiles,
+          perfiles: asegurarPerfilesBase(estado.perfiles ?? get().perfiles),
           ejecutivos: estado.ejecutivos ?? get().ejecutivos,
           proyectos: estado.proyectos ?? get().proyectos,
           fases: estado.fases ?? get().fases,

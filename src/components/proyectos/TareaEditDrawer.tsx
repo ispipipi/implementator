@@ -49,7 +49,7 @@ const estadoConfig: Record<EstadoTarea, { label: string; hint: string; icon: typ
 
 export function TareaEditDrawer({ tarea, onClose }: Props) {
   const { actualizarTarea, usuarioActivo, proyectos, fases, tareas, perfiles, ejecutivos } = useAppStore();
-  const { puedeCambiarEstadoTarea, puedeEditarDatosTarea } = usePermisos();
+  const { puedeCambiarEstadoTarea, puedeEditarDatosTarea, esComercial } = usePermisos();
   const [form, setForm] = useState({
     estado: 'pendiente' as EstadoTarea,
     responsable: '',
@@ -64,6 +64,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
   const vencida = tareaActual ? tareaEstaVencida(tareaActual) : false;
   const overdueDays = tareaActual ? diasVencida(tareaActual) : 0;
   const puedeReasignar =
+    !esComercial &&
     !!usuarioActivo &&
     !!tareaActual &&
     (puedeEditarDatosTarea || responsableAsignadoAUsuario(tareaActual.responsable, usuarioActivo));
@@ -77,7 +78,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
   }, [ejecutivos, perfiles, tareaActual?.responsable]);
 
   useEffect(() => {
-    if (!tareaActual) return;
+    if (!tareaActual || esComercial) return;
     setForm({
       estado: tareaActual.estado,
       responsable: tareaActual.responsable,
@@ -152,7 +153,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
             {!puedeEditarDatosTarea ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 text-xs text-slate-400">
                 <Lock className="h-3.5 w-3.5" />
-                {puedeReasignar ? 'Estado, reasignacion y comentarios' : 'Solo estado y comentarios'}
+                {esComercial ? 'Solo lectura' : puedeReasignar ? 'Estado, reasignacion y comentarios' : 'Solo estado y comentarios'}
               </span>
             ) : null}
           </div>
@@ -273,7 +274,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
 
           <label className="grid gap-2 text-sm text-slate-300">
             Agregar comentario
-            <textarea className="min-h-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white" placeholder="Escribe una observacion, bloqueo, acuerdo o avance..." value={form.comentarioNuevo} onChange={(e) => setForm((s) => ({ ...s, comentarioNuevo: e.target.value }))} />
+            <textarea disabled={esComercial} className="min-h-24 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60" placeholder={esComercial ? 'Perfil solo lectura' : 'Escribe una observacion, bloqueo, acuerdo o avance...'} value={form.comentarioNuevo} onChange={(e) => setForm((s) => ({ ...s, comentarioNuevo: e.target.value }))} />
           </label>
         </section>
 
@@ -290,11 +291,17 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
           </div>
         ) : null}
 
-        <button className="sticky bottom-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 shadow-[0_16px_32px_rgba(16,185,129,0.24)] hover:bg-emerald-300" onClick={save}>
-          <Save className="h-4 w-4" />
-          {form.comentarioNuevo.trim() ? <Send className="h-4 w-4" /> : null}
-          {puedeEditarDatosTarea ? 'Guardar cambios' : 'Guardar estado/comentario'}
-        </button>
+        {esComercial ? (
+          <div className="rounded-lg border border-white/10 bg-white/[0.035] px-4 py-3 text-center text-sm font-medium text-slate-400">
+            Perfil solo lectura: no puede modificar estado, responsable ni comentarios.
+          </div>
+        ) : (
+          <button className="sticky bottom-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-3 font-semibold text-slate-950 shadow-[0_16px_32px_rgba(16,185,129,0.24)] hover:bg-emerald-300" onClick={save}>
+            <Save className="h-4 w-4" />
+            {form.comentarioNuevo.trim() ? <Send className="h-4 w-4" /> : null}
+            {puedeEditarDatosTarea ? 'Guardar cambios' : 'Guardar estado/comentario'}
+          </button>
+        )}
       </div>
     </Drawer>
   );

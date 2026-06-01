@@ -10,6 +10,7 @@ const tiposPerfil: Array<{ value: PerfilUsuario; label: string }> = [
   { value: 'artbpo_ejecutivo', label: 'Analista' },
   { value: 'tmf', label: 'TMF' },
   { value: 'cliente', label: 'Cliente' },
+  { value: 'comercial', label: 'Comercial solo lectura' },
 ];
 
 export function MantenedorPerfiles() {

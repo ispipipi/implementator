@@ -10,9 +10,22 @@ import { ProyectosList } from './components/proyectos/ProyectosList';
 import { MisTareasView } from './components/tareas/MisTareasView';
 import { subscribeWorkspaceState } from './services/remoteState';
 import { useAppStore } from './store/useAppStore';
+import { TemaApp } from './types';
+
+const temaPorHoraChile = (): TemaApp => {
+  const horaChile = Number(
+    new Intl.DateTimeFormat('en-US', {
+      hour: '2-digit',
+      hour12: false,
+      timeZone: 'America/Santiago',
+    }).format(new Date()),
+  );
+
+  return horaChile >= 7 && horaChile < 20 ? 'dia' : 'noche';
+};
 
 function App() {
-  const { vista, recalcularAlertas, tema, usuarioActivo, aplicarEstadoCompartido } = useAppStore();
+  const { vista, recalcularAlertas, tema, setTema, usuarioActivo, aplicarEstadoCompartido } = useAppStore();
 
   useEffect(() => {
     recalcularAlertas();
@@ -22,6 +35,19 @@ function App() {
     document.documentElement.dataset.theme = tema;
     document.documentElement.style.colorScheme = tema === 'dia' ? 'light' : 'dark';
   }, [tema]);
+
+  useEffect(() => {
+    const aplicarTemaHorario = () => {
+      const temaHorario = temaPorHoraChile();
+      if (useAppStore.getState().tema !== temaHorario) {
+        setTema(temaHorario);
+      }
+    };
+
+    aplicarTemaHorario();
+    const timer = window.setInterval(aplicarTemaHorario, 5 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [setTema]);
 
   useEffect(() => {
     if (!usuarioActivo) return undefined;
