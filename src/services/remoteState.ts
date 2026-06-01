@@ -12,6 +12,22 @@ const workspaceRef = () => {
   return doc(db, 'implementator', 'workspace');
 };
 
+const removeUndefined = <T,>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value.map((item) => (item === undefined ? null : removeUndefined(item))) as T;
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, item]) => item !== undefined)
+        .map(([key, item]) => [key, removeUndefined(item)]),
+    ) as T;
+  }
+
+  return value;
+};
+
 export function toSharedState(state: AppState): SharedState {
   return {
     perfiles: state.perfiles,
@@ -51,10 +67,11 @@ export async function loadWorkspaceState() {
 export async function saveWorkspaceState(state: AppState, motivo: string) {
   const ref = workspaceRef();
   if (!ref) return;
+  const sharedState = removeUndefined(toSharedState(state));
   await setDoc(
     ref,
     {
-      ...toSharedState(state),
+      ...sharedState,
       updatedAt: serverTimestamp(),
       updatedBy: state.usuarioActivo?.email ?? state.usuarioActivo?.nombre ?? 'Sistema',
       motivo,

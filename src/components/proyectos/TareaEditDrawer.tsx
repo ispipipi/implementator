@@ -14,7 +14,7 @@ type Props = {
 const estados: EstadoTarea[] = ['pendiente', 'en_proceso', 'completada', 'bloqueada', 'cancelada'];
 
 export function TareaEditDrawer({ tarea, onClose }: Props) {
-  const { actualizarTarea, usuarioActivo, proyectos, fases } = useAppStore();
+  const { actualizarTarea, usuarioActivo, proyectos, fases, tareas } = useAppStore();
   const { puedeCambiarEstadoTarea, puedeEditarDatosTarea } = usePermisos();
   const [form, setForm] = useState({
     estado: 'pendiente' as EstadoTarea,
@@ -24,27 +24,28 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
     comentarioNuevo: '',
   });
 
-  const proyecto = tarea ? proyectos.find((p) => p.id === tarea.proyectoId) : null;
-  const fase = tarea ? fases.find((f) => f.id === tarea.faseId) : null;
+  const tareaActual = tarea ? tareas.find((item) => item.id === tarea.id) ?? tarea : null;
+  const proyecto = tareaActual ? proyectos.find((p) => p.id === tareaActual.proyectoId) : null;
+  const fase = tareaActual ? fases.find((f) => f.id === tareaActual.faseId) : null;
 
   useEffect(() => {
-    if (!tarea) return;
+    if (!tareaActual) return;
     setForm({
-      estado: tarea.estado,
-      responsable: tarea.responsable,
-      fechaInicioPlan: tarea.fechaInicioPlan,
-      fechaFinPlan: tarea.fechaFinPlan,
+      estado: tareaActual.estado,
+      responsable: tareaActual.responsable,
+      fechaInicioPlan: tareaActual.fechaInicioPlan,
+      fechaFinPlan: tareaActual.fechaFinPlan,
       comentarioNuevo: '',
     });
-  }, [tarea]);
+  }, [tareaActual?.id]);
 
   const save = () => {
-    if (!tarea) return;
+    if (!tareaActual) return;
     const hoy = new Date().toISOString().slice(0, 10);
     const nuevoComentario = form.comentarioNuevo.trim();
     const comentarios = nuevoComentario
       ? [
-          ...(tarea.comentarios ?? []),
+          ...(tareaActual.comentarios ?? []),
           {
             id: `comentario-${crypto.randomUUID?.() ?? Date.now()}`,
             texto: nuevoComentario,
@@ -52,11 +53,9 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
             fecha: new Date().toISOString(),
           },
         ]
-      : tarea.comentarios;
-    const cambios = {
+      : tareaActual.comentarios;
+    const cambios: Partial<Tarea> = {
       estado: form.estado,
-      fechaInicioReal: form.estado === 'en_proceso' || form.estado === 'completada' ? (tarea.fechaInicioReal ?? hoy) : tarea.fechaInicioReal,
-      fechaFinReal: form.estado === 'completada' ? (tarea.fechaFinReal ?? hoy) : tarea.fechaFinReal,
       ...(comentarios ? { comentarios } : {}),
       ...(puedeEditarDatosTarea
         ? {
@@ -66,11 +65,20 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
           }
         : {}),
     };
-    actualizarTarea(tarea.id, cambios, usuarioActivo?.nombre ?? 'Sistema');
-    onClose();
+
+    if (form.estado === 'en_proceso' || form.estado === 'completada') {
+      cambios.fechaInicioReal = tareaActual.fechaInicioReal ?? hoy;
+    }
+
+    if (form.estado === 'completada') {
+      cambios.fechaFinReal = tareaActual.fechaFinReal ?? hoy;
+    }
+
+    actualizarTarea(tareaActual.id, cambios, usuarioActivo?.nombre ?? 'Sistema');
+    setForm((current) => ({ ...current, comentarioNuevo: '' }));
   };
 
-  const comentarios = tarea?.comentarios ?? [];
+  const comentarios = tareaActual?.comentarios ?? [];
   const formatFecha = (fecha: string) =>
     new Intl.DateTimeFormat('es-CL', {
       dateStyle: 'short',
@@ -78,12 +86,12 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
     }).format(new Date(fecha));
 
   return (
-    <Drawer open={!!tarea} title="Ficha de tarea" onClose={onClose}>
+    <Drawer open={!!tareaActual} title="Ficha de tarea" onClose={onClose}>
       <div className="space-y-5">
         <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            {tarea ? <StatusBadge estado={form.estado} ping={form.estado === 'bloqueada'} /> : null}
-            {tarea?.esMilestone ? <span className="rounded-full bg-amber-400/12 px-2.5 py-1 text-xs font-medium text-amber-100">Milestone</span> : null}
+            {tareaActual ? <StatusBadge estado={form.estado} ping={form.estado === 'bloqueada'} /> : null}
+            {tareaActual?.esMilestone ? <span className="rounded-full bg-amber-400/12 px-2.5 py-1 text-xs font-medium text-amber-100">Milestone</span> : null}
             {!puedeEditarDatosTarea ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 text-xs text-slate-400">
                 <Lock className="h-3.5 w-3.5" />
@@ -91,15 +99,15 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
               </span>
             ) : null}
           </div>
-          <h3 className="text-2xl font-semibold text-white">{tarea?.nombre}</h3>
-          <p className="mt-2 text-sm text-slate-400">{tarea?.descripcion || 'Sin descripcion adicional.'}</p>
+          <h3 className="text-2xl font-semibold text-white">{tareaActual?.nombre}</h3>
+          <p className="mt-2 text-sm text-slate-400">{tareaActual?.descripcion || 'Sin descripcion adicional.'}</p>
         </section>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <InfoTile icon={FileText} label="Proyecto" value={proyecto?.nombre ?? 'Proyecto'} />
           <InfoTile icon={Flag} label="Fase" value={fase ? `${fase.codigo} · ${fase.nombre}` : 'Fase'} />
           <InfoTile icon={UserRound} label="Responsable" value={form.responsable || 'Sin asignar'} />
-          <InfoTile icon={Clock3} label="Duracion" value={`${tarea?.duracionDias ?? 0} dia(s)`} />
+          <InfoTile icon={Clock3} label="Duracion" value={`${tareaActual?.duracionDias ?? 0} dia(s)`} />
           <InfoTile icon={CalendarDays} label="Inicio plan" value={form.fechaInicioPlan || '-'} />
           <InfoTile icon={CalendarDays} label="Fin plan" value={form.fechaFinPlan || '-'} />
         </div>
@@ -152,13 +160,13 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
           </div>
 
           <div className="mb-4 max-h-72 space-y-3 overflow-y-auto pr-1">
-            {tarea?.observacion ? (
+            {tareaActual?.observacion ? (
               <div className="rounded-lg border border-white/10 bg-white/[0.035] p-3">
                 <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <span className="font-medium text-slate-300">Nota anterior</span>
                   <span className="text-slate-500">Migrada desde observacion</span>
                 </div>
-                <p className="whitespace-pre-wrap text-sm text-slate-300">{tarea.observacion}</p>
+                <p className="whitespace-pre-wrap text-sm text-slate-300">{tareaActual.observacion}</p>
               </div>
             ) : null}
 
@@ -172,7 +180,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
                   <p className="whitespace-pre-wrap text-sm text-slate-200">{comentario.texto}</p>
                 </div>
               ))
-            ) : !tarea?.observacion ? (
+            ) : !tareaActual?.observacion ? (
               <p className="rounded-lg border border-dashed border-white/10 p-3 text-sm text-slate-500">Sin comentarios todavía.</p>
             ) : null}
           </div>
@@ -183,11 +191,11 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
           </label>
         </section>
 
-        {tarea?.historial?.length ? (
+        {tareaActual?.historial?.length ? (
           <div className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
             <h3 className="mb-3 text-sm font-semibold text-white">Últimos cambios</h3>
             <div className="space-y-2 text-xs text-slate-400">
-              {tarea.historial.slice(-5).map((item, index) => (
+              {tareaActual.historial.slice(-5).map((item, index) => (
                 <p key={`${item.fecha}-${index}`}>
                   {item.campo}: {item.valorAnterior || '-'} {'>'} {item.valorNuevo || '-'} · {item.usuario}
                 </p>
