@@ -1,4 +1,4 @@
-import { BarChart3, BriefcaseBusiness, Building2, CalendarRange, ListTodo, LogOut, Moon, Settings, Sun } from 'lucide-react';
+import { BriefcaseBusiness, Building2, CalendarRange, ListTodo, LogOut, Moon, Settings, Sun } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { usePermisos } from '../../hooks/usePermisos';
 import { auth } from '../../services/firebaseClient';
@@ -6,9 +6,8 @@ import { useAppStore } from '../../store/useAppStore';
 import { Breadcrumb } from './Breadcrumb';
 
 export function Header() {
-  const { usuarioActivo, setVista, alertas, tema, alternarTema } = useAppStore();
+  const { usuarioActivo, setVista, tema, alternarTema } = useAppStore();
   const { puedeAdministrar } = usePermisos();
-  const alertasPendientes = alertas.filter((a) => !a.leida).length;
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0f1117]/78 backdrop-blur-xl">
@@ -36,11 +35,6 @@ export function Header() {
             <button className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/8" onClick={() => setVista('info_cliente')}>
               <Building2 className="h-4 w-4" />
               Info cliente
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/8" onClick={() => setVista('reportes')}>
-              <BarChart3 className="h-4 w-4" />
-              Reportes
-              {alertasPendientes ? <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white">{alertasPendientes}</span> : null}
             </button>
             {puedeAdministrar ? (
               <>

@@ -218,9 +218,6 @@ export function DashboardView() {
                     Ver proyectos
                     <ArrowRight className="h-4 w-4" />
                   </button>
-                  <button className="rounded-lg border border-white/10 px-4 py-2 font-medium text-slate-200 hover:bg-white/8" onClick={() => setVista('reportes')}>
-                    Abrir reportes
-                  </button>
                 </div>
               </div>
               <button className="flex flex-col items-center gap-5 rounded-lg p-3 text-center transition hover:bg-white/[0.04] focus:outline-none focus:ring-2 focus:ring-emerald-300/40" onClick={() => abrirKpi('avance')}>

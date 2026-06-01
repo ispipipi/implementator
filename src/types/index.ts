@@ -98,7 +98,7 @@ export interface Alerta {
   creadaEn: string;
 }
 
-export type Vista = 'dashboard' | 'proyectos' | 'proyecto' | 'fase' | 'mis_tareas' | 'info_cliente' | 'gantt_admin' | 'reportes' | 'ajustes';
+export type Vista = 'dashboard' | 'proyectos' | 'proyecto' | 'fase' | 'mis_tareas' | 'info_cliente' | 'gantt_admin' | 'ajustes';
 
 export interface AppState {
   usuarioActivo: UsuarioActivo | null;

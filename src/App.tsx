@@ -7,7 +7,6 @@ import { GanttAdminView } from './components/gantt/GanttAdminView';
 import { Header } from './components/layout/Header';
 import { ProyectoDetail } from './components/proyectos/ProyectoDetail';
 import { ProyectosList } from './components/proyectos/ProyectosList';
-import { ReportesView } from './components/reportes/ReportesView';
 import { MisTareasView } from './components/tareas/MisTareasView';
 import { subscribeWorkspaceState } from './services/remoteState';
 import { useAppStore } from './store/useAppStore';
@@ -40,7 +39,6 @@ function App() {
         {vista === 'mis_tareas' ? <MisTareasView /> : null}
         {vista === 'info_cliente' ? <InfoClienteView /> : null}
         {vista === 'gantt_admin' ? <GanttAdminView /> : null}
-        {vista === 'reportes' ? <ReportesView /> : null}
         {vista === 'ajustes' ? <AjustesView /> : null}
       </main>
     </div>
