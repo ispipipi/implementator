@@ -11,6 +11,7 @@ import { StatusBadge } from '../ui/StatusBadge';
 import { TrafficLightOrb } from '../ui/TrafficLightOrb';
 import { AlertPanel } from '../layout/AlertPanel';
 import { TareaEditDrawer } from '../proyectos/TareaEditDrawer';
+import { TaskStatusGroups } from '../proyectos/TareasDrilldown';
 
 type KpiDetalle = 'proyectos' | 'completadas' | 'en_proceso' | 'alertas' | 'avance';
 
@@ -456,24 +457,28 @@ function DashboardKpiDetalle({
                 );
               })
             ) : (
-              tareasFase.map((tarea) => (
-                <button key={tarea.id} className="rounded-lg border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/35 hover:bg-white/8" onClick={() => onOpenTask(tarea)}>
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <StatusBadge estado={tarea.estado} ping={tarea.estado === 'bloqueada'} />
-                        {tarea.esMilestone ? <span className="rounded-full bg-amber-400/12 px-2.5 py-1 text-xs font-medium text-amber-100">Milestone</span> : null}
+              <TaskStatusGroups
+                tareas={tareasFase}
+                scopeId={`dashboard-${fase.id}`}
+                renderTask={(tarea) => (
+                  <button key={tarea.id} className="rounded-lg border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-emerald-300/35 hover:bg-white/8" onClick={() => onOpenTask(tarea)}>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <StatusBadge estado={tarea.estado} ping={tarea.estado === 'bloqueada'} />
+                          {tarea.esMilestone ? <span className="rounded-full bg-amber-400/12 px-2.5 py-1 text-xs font-medium text-amber-100">Milestone</span> : null}
+                        </div>
+                        <h3 className="font-semibold text-white">{tarea.nombre}</h3>
+                        <p className="mt-1 text-sm text-slate-500">Responsable: {tarea.responsable}</p>
                       </div>
-                      <h3 className="font-semibold text-white">{tarea.nombre}</h3>
-                      <p className="mt-1 text-sm text-slate-500">Responsable: {tarea.responsable}</p>
+                      <div className="text-left text-sm text-slate-400 sm:text-right">
+                        <p>Inicio {tarea.fechaInicioPlan}</p>
+                        <p>Fin {tarea.fechaFinPlan}</p>
+                      </div>
                     </div>
-                    <div className="text-right text-sm text-slate-400">
-                      <p>{tarea.fechaInicioPlan}</p>
-                      <p>{tarea.fechaFinPlan}</p>
-                    </div>
-                  </div>
-                </button>
-              ))
+                  </button>
+                )}
+              />
             )
           ) : (
             <EmptyKpiState text="No hay tareas para esta fase." />

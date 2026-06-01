@@ -1,5 +1,5 @@
 import { AlertTriangle, ChevronDown, ChevronRight, FolderKanban, ListChecks, MessageSquare, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { useAppStore, calcPctFase, calcPctProyecto } from '../../store/useAppStore';
 import { Tarea } from '../../types';
 import { diasVencida, tareaEstaVencida } from '../../utils/taskHealth';
@@ -15,6 +15,15 @@ type Props = {
 };
 
 const sortByPlan = (a: Tarea, b: Tarea) => a.fechaInicioPlan.localeCompare(b.fechaInicioPlan);
+const estadosOrden = ['vencida', 'bloqueada', 'en_proceso', 'pendiente', 'completada', 'cancelada'];
+const estadoLabels: Record<string, string> = {
+  vencida: 'Vencidas',
+  bloqueada: 'Bloqueadas',
+  en_proceso: 'En proceso',
+  pendiente: 'Pendientes',
+  completada: 'Completadas',
+  cancelada: 'Canceladas',
+};
 
 const toggleSet = (set: Set<string>, id: string) => {
   const next = new Set(set);
@@ -22,6 +31,58 @@ const toggleSet = (set: Set<string>, id: string) => {
   else next.add(id);
   return next;
 };
+
+const estadoAgrupacion = (tarea: Tarea) => (tareaEstaVencida(tarea) ? 'vencida' : tarea.estado);
+
+export function TaskStatusGroups({
+  tareas,
+  renderTask,
+  scopeId,
+}: {
+  tareas: Tarea[];
+  renderTask: (tarea: Tarea) => ReactNode;
+  scopeId: string;
+}) {
+  const [openStatuses, setOpenStatuses] = useState<Set<string>>(new Set());
+  const groups = useMemo(() => {
+    return estadosOrden
+      .map((estado) => {
+        const key = String(estado);
+        return {
+          key,
+          label: estadoLabels[key] ?? key,
+          tareas: tareas.filter((tarea) => estadoAgrupacion(tarea) === key),
+        };
+      })
+      .filter((group) => group.tareas.length);
+  }, [tareas]);
+
+  if (!groups.length) return null;
+
+  return (
+    <div className="grid gap-3">
+      {groups.map((group) => {
+        const id = `${scopeId}-${group.key}`;
+        const isOpen = openStatuses.has(id);
+        const isCritical = group.key === 'vencida';
+        return (
+          <div key={id} className={`rounded-lg border ${isCritical ? 'border-red-400/45 bg-red-500/10' : 'border-white/10 bg-white/[0.025]'}`}>
+            <button className="flex w-full items-center justify-between gap-3 p-3 text-left" onClick={() => setOpenStatuses((current) => toggleSet(current, id))}>
+              <div className="flex min-w-0 items-center gap-2">
+                {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />}
+                <span className={`font-semibold ${isCritical ? 'text-red-100' : 'text-white'}`}>{group.label}</span>
+              </div>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${isCritical ? 'bg-red-500 text-white' : 'bg-white/8 text-slate-300'}`}>
+                {group.tareas.length}
+              </span>
+            </button>
+            {isOpen ? <div className="grid gap-3 border-t border-white/10 p-3">{group.tareas.map((tarea) => renderTask(tarea))}</div> : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export function TareasDrilldown({ tareas, showProjectLevel = true, query = '' }: Props) {
   const { proyectos, fases } = useAppStore();
@@ -145,7 +206,11 @@ export function TareasDrilldown({ tareas, showProjectLevel = true, query = '' }:
                   <ProgressBar value={pct} tone={pct === 100 ? 'emerald' : 'blue'} />
                 </div>
               </button>
-              {isOpen ? <div className="grid gap-3 border-t border-white/10 p-3">{tareasFase.map(renderTask)}</div> : null}
+              {isOpen ? (
+                <div className="border-t border-white/10 p-3">
+                  <TaskStatusGroups tareas={tareasFase} renderTask={renderTask} scopeId={`fase-${fase.id}`} />
+                </div>
+              ) : null}
             </div>
           );
         })}
