@@ -8,14 +8,15 @@ import {
 import { auth, firebaseApp } from './firebaseClient';
 
 const SECONDARY_APP_NAME = 'implementator-user-provisioning';
+const DEFAULT_PUBLIC_URL = 'https://ispipipi.github.io/implementator/';
 
 const normalizarEmail = (email: string) => email.trim().toLowerCase();
 
 const actionCodeSettings = () => {
-  if (typeof window === 'undefined') return undefined;
+  const publicUrl = import.meta.env.VITE_APP_PUBLIC_URL || DEFAULT_PUBLIC_URL;
 
   return {
-    url: new URL(import.meta.env.BASE_URL || '/', window.location.origin).toString(),
+    url: publicUrl,
     handleCodeInApp: false,
   };
 };
