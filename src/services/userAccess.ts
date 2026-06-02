@@ -21,6 +21,10 @@ const actionCodeSettings = () => {
   };
 };
 
+const prepararAuthParaEmail = (targetAuth: ReturnType<typeof getAuth>) => {
+  targetAuth.languageCode = 'es';
+};
+
 const generarPasswordTemporal = () => {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
   const values = new Uint32Array(24);
@@ -56,6 +60,8 @@ export async function enviarCorreoAccesoPerfil(email: string) {
 
   if (!emailNormalizado) throw new Error('Ingresa un email para enviar el correo de acceso.');
   if (!provisioningAuth) throw new Error('Firebase Auth no esta configurado.');
+
+  prepararAuthParaEmail(provisioningAuth);
 
   let usuarioCreado = false;
 
@@ -97,6 +103,8 @@ export async function enviarRecuperacionPassword(email: string) {
 
   if (!emailNormalizado) throw new Error('Ingresa tu email para crear una nueva contrasena.');
   if (!auth) throw new Error('Firebase Auth no esta configurado.');
+
+  prepararAuthParaEmail(auth);
 
   try {
     await sendPasswordResetEmail(auth, emailNormalizado, actionCodeSettings());
