@@ -521,6 +521,12 @@ export const useAppStore = create<AppState>()(
     {
       name: 'implementator_state',
       version: 3,
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<AppState> | undefined;
+        if (!persisted) return currentState;
+        const { tema: _tema, ...persistedWithoutTheme } = persisted;
+        return { ...currentState, ...persistedWithoutTheme };
+      },
       partialize: (state) => ({
         usuarioActivo: state.usuarioActivo,
         perfiles: state.perfiles,
@@ -532,7 +538,6 @@ export const useAppStore = create<AppState>()(
         alertas: state.alertas,
         expedientes: state.expedientes,
         diasAnticipacionAlerta: state.diasAnticipacionAlerta,
-        tema: state.tema,
         fuenteGoogleSheetsUrl: state.fuenteGoogleSheetsUrl,
       }),
     },

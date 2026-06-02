@@ -123,9 +123,26 @@ html[data-theme='dia'] .text-blue-200 {
   color: #1d4ed8 !important;
 }
 
+html[data-theme='dia'] .text-amber-100,
 html[data-theme='dia'] .text-amber-200,
-html[data-theme='dia'] .text-amber-300 {
-  color: #b45309 !important;
+html[data-theme='dia'] .text-amber-300,
+html[data-theme='dia'] .text-amber-400,
+html[data-theme='dia'] .text-yellow-100,
+html[data-theme='dia'] .text-yellow-200,
+html[data-theme='dia'] .text-yellow-300,
+html[data-theme='dia'] .text-yellow-400 {
+  color: #92400e !important;
+}
+
+html[data-theme='dia'] .border-amber-300\/20,
+html[data-theme='dia'] .border-amber-300\/60 {
+  border-color: rgba(146, 64, 14, 0.32) !important;
+}
+
+html[data-theme='dia'] .bg-amber-300\/10,
+html[data-theme='dia'] .bg-amber-400\/12,
+html[data-theme='dia'] .bg-amber-400\/15 {
+  background-color: rgba(245, 158, 11, 0.16) !important;
 }
 
 html[data-theme='dia'] .text-red-200,

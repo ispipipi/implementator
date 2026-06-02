@@ -17,8 +17,11 @@ const temaPorHoraChile = (): TemaApp => {
     new Intl.DateTimeFormat('en-US', {
       hour: '2-digit',
       hour12: false,
+      hourCycle: 'h23',
       timeZone: 'America/Santiago',
-    }).format(new Date()),
+    })
+      .formatToParts(new Date())
+      .find((part) => part.type === 'hour')?.value ?? '0',
   );
 
   return horaChile >= 7 && horaChile < 20 ? 'dia' : 'noche';
@@ -45,8 +48,19 @@ function App() {
     };
 
     aplicarTemaHorario();
-    const timer = window.setInterval(aplicarTemaHorario, 5 * 60 * 1000);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(aplicarTemaHorario, 60 * 1000);
+    const aplicarAlVolver = () => {
+      if (!document.hidden) aplicarTemaHorario();
+    };
+
+    document.addEventListener('visibilitychange', aplicarAlVolver);
+    window.addEventListener('focus', aplicarTemaHorario);
+
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', aplicarAlVolver);
+      window.removeEventListener('focus', aplicarTemaHorario);
+    };
   }, [setTema]);
 
   useEffect(() => {
