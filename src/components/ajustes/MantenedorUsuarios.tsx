@@ -119,6 +119,7 @@ export function MantenedorUsuarios() {
           const perfil = perfilesAcceso.find((item) => item.id === usuario.perfil);
           const esCliente = perfilEsCliente(usuario.perfil);
           const email = (usuario.email ?? '').trim().toLowerCase();
+          const enviandoAcceso = !!email && emailEnProceso === email;
 
           return (
             <div key={usuario.id} className="grid gap-3 rounded-lg border border-white/10 bg-white/[0.035] p-4 lg:grid-cols-12">
@@ -131,13 +132,14 @@ export function MantenedorUsuarios() {
               </select>
               <button
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300/20 px-3 py-2 text-sm font-medium text-emerald-100 hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-60 lg:col-span-2"
-                disabled={emailEnProceso === email}
+                disabled={enviandoAcceso}
                 onClick={() => enviarAcceso(email)}
+                type="button"
               >
                 <Mail className="h-4 w-4" />
-                {emailEnProceso === email ? 'Enviando...' : 'Enviar acceso'}
+                {enviandoAcceso ? 'Enviando...' : 'Enviar acceso'}
               </button>
-              <button className="rounded-lg border border-red-400/20 p-2 text-red-300 hover:bg-red-500/10" onClick={() => eliminarUsuario(usuario.id)} aria-label={`Eliminar ${usuario.nombre}`}>
+              <button className="rounded-lg border border-red-400/20 p-2 text-red-300 hover:bg-red-500/10" onClick={() => eliminarUsuario(usuario.id)} aria-label={`Eliminar ${usuario.nombre}`} type="button">
                 <Trash2 className="h-4 w-4" />
               </button>
               {esCliente ? (

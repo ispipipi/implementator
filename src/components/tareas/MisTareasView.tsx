@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { useProyectosVisibles } from '../../hooks/usePermisos';
 import { useAppStore } from '../../store/useAppStore';
 import { Tarea, UsuarioActivo } from '../../types';
-import { responsableAsignadoAUsuario } from '../../utils/assignee';
+import { normalizarResponsable, responsableAsignadoAUsuario } from '../../utils/assignee';
 import { tareaEstaVencida } from '../../utils/taskHealth';
 import { TareasDrilldown } from '../proyectos/TareasDrilldown';
 
@@ -15,6 +15,18 @@ const getTasksForUser = (tareas: Tarea[], proyectoIds: string[], usuario: Usuari
   return visible;
 };
 
+const tieneAcentos = (value: string) => value.normalize('NFD') !== value;
+
+const agregarPersonaUnica = (map: Map<string, string>, nombre: string) => {
+  const clean = nombre.trim();
+  const key = normalizarResponsable(clean);
+  if (!key) return;
+  const actual = map.get(key);
+  if (!actual || (!tieneAcentos(actual) && tieneAcentos(clean))) {
+    map.set(key, clean);
+  }
+};
+
 export function MisTareasView() {
   const proyectos = useProyectosVisibles();
   const { tareas, usuarioActivo, perfiles, ejecutivos } = useAppStore();
@@ -23,7 +35,7 @@ export function MisTareasView() {
   const personasAsignables = useMemo(() => {
     const byName = new Map<string, string>();
     [...perfiles.filter((perfil) => perfil.activo !== false), ...ejecutivos].forEach((persona) => {
-      if (persona.nombre.trim()) byName.set(persona.nombre, persona.nombre);
+      agregarPersonaUnica(byName, persona.nombre);
     });
     return Array.from(byName.values()).sort((a, b) => a.localeCompare(b));
   }, [ejecutivos, perfiles]);

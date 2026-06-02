@@ -5,7 +5,7 @@ import { EstadoTarea, Tarea } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { usePermisos } from '../../hooks/usePermisos';
 import { StatusBadge } from '../ui/StatusBadge';
-import { responsableAsignadoAUsuario } from '../../utils/assignee';
+import { normalizarResponsable, responsableAsignadoAUsuario } from '../../utils/assignee';
 import { diasVencida, tareaEstaVencida } from '../../utils/taskHealth';
 
 type Props = {
@@ -47,6 +47,18 @@ const estadoConfig: Record<EstadoTarea, { label: string; hint: string; icon: typ
   },
 };
 
+const tieneAcentos = (value: string) => value.normalize('NFD') !== value;
+
+const agregarPersonaUnica = (map: Map<string, string>, nombre: string) => {
+  const clean = nombre.trim();
+  const key = normalizarResponsable(clean);
+  if (!key) return;
+  const actual = map.get(key);
+  if (!actual || (!tieneAcentos(actual) && tieneAcentos(clean))) {
+    map.set(key, clean);
+  }
+};
+
 export function TareaEditDrawer({ tarea, onClose }: Props) {
   const { actualizarTarea, usuarioActivo, proyectos, fases, tareas, perfiles, ejecutivos } = useAppStore();
   const { puedeCambiarEstadoTarea, puedeEditarDatosTarea, esComercial } = usePermisos();
@@ -71,22 +83,25 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
   const personasAsignables = useMemo(() => {
     const byName = new Map<string, string>();
     [...perfiles.filter((perfil) => perfil.activo !== false), ...ejecutivos].forEach((persona) => {
-      if (persona.nombre.trim()) byName.set(persona.nombre, persona.nombre);
+      agregarPersonaUnica(byName, persona.nombre);
     });
-    if (tareaActual?.responsable) byName.set(tareaActual.responsable, tareaActual.responsable);
+    if (tareaActual?.responsable) agregarPersonaUnica(byName, tareaActual.responsable);
     return Array.from(byName.values()).sort((a, b) => a.localeCompare(b));
   }, [ejecutivos, perfiles, tareaActual?.responsable]);
 
   useEffect(() => {
     if (!tareaActual) return;
+    const responsableCanonico =
+      personasAsignables.find((persona) => normalizarResponsable(persona) === normalizarResponsable(tareaActual.responsable)) ??
+      tareaActual.responsable;
     setForm({
       estado: tareaActual.estado,
-      responsable: tareaActual.responsable,
+      responsable: responsableCanonico,
       fechaInicioPlan: tareaActual.fechaInicioPlan,
       fechaFinPlan: tareaActual.fechaFinPlan,
       comentarioNuevo: '',
     });
-  }, [tareaActual?.id]);
+  }, [personasAsignables, tareaActual?.id]);
 
   const save = () => {
     if (!tareaActual) return;

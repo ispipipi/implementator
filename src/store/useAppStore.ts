@@ -31,6 +31,7 @@ const guardarRemoto = (state: AppState, motivo: string) => {
 const expedienteVacio = (): ExpedienteProyecto => ({ documentos: [], accesos: [] });
 
 const asegurarPerfilesBase = (perfiles: AppState['perfiles']) => {
+  if (perfiles.length) return perfiles;
   const ids = new Set(perfiles.map((perfil) => perfil.id));
   const emails = new Set(perfiles.map((perfil) => perfil.email?.toLowerCase()).filter(Boolean));
   const faltantes = PERFILES_SEED.filter((perfil) => !ids.has(perfil.id) && (!perfil.email || !emails.has(perfil.email.toLowerCase())));

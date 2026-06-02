@@ -113,10 +113,12 @@ html[data-theme='dia'] .text-slate-500 {
   color: #64748b !important;
 }
 
+html[data-theme='dia'] .text-emerald-50,
 html[data-theme='dia'] .text-emerald-100,
 html[data-theme='dia'] .text-emerald-200,
-html[data-theme='dia'] .text-emerald-300 {
-  color: #047857 !important;
+html[data-theme='dia'] .text-emerald-300,
+html[data-theme='dia'] .text-emerald-400 {
+  color: #065f46 !important;
 }
 
 html[data-theme='dia'] .text-blue-200 {
@@ -145,8 +147,11 @@ html[data-theme='dia'] .bg-amber-400\/15 {
   background-color: rgba(245, 158, 11, 0.16) !important;
 }
 
+html[data-theme='dia'] .text-red-50,
+html[data-theme='dia'] .text-red-100,
 html[data-theme='dia'] .text-red-200,
-html[data-theme='dia'] .text-red-300 {
+html[data-theme='dia'] .text-red-300,
+html[data-theme='dia'] .text-red-400 {
   color: #b91c1c !important;
 }
 
