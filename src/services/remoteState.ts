@@ -4,7 +4,7 @@ import { db } from './firebaseClient';
 
 type SharedState = Pick<
   AppState,
-  'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'
+  'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'bodegasInventario' | 'productosInventario' | 'movimientosInventario' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'
 >;
 
 const workspaceRef = () => {
@@ -38,6 +38,9 @@ export function toSharedState(state: AppState): SharedState {
     tareas: state.tareas,
     alertas: state.alertas,
     expedientes: state.expedientes,
+    bodegasInventario: state.bodegasInventario,
+    productosInventario: state.productosInventario,
+    movimientosInventario: state.movimientosInventario,
     diasAnticipacionAlerta: state.diasAnticipacionAlerta,
     fuenteGoogleSheetsUrl: state.fuenteGoogleSheetsUrl,
   };

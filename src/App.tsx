@@ -4,6 +4,7 @@ import { LoginView } from './components/auth/LoginView';
 import { InfoClienteView } from './components/clientes/InfoClienteView';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { GanttAdminView } from './components/gantt/GanttAdminView';
+import { InventarioView } from './components/inventario/InventarioView';
 import { Header } from './components/layout/Header';
 import { ProyectoDetail } from './components/proyectos/ProyectoDetail';
 import { ProyectosList } from './components/proyectos/ProyectosList';
@@ -78,6 +79,7 @@ function App() {
         {vista === 'proyecto' || vista === 'fase' ? <ProyectoDetail /> : null}
         {vista === 'mis_tareas' ? <MisTareasView /> : null}
         {vista === 'info_cliente' ? <InfoClienteView /> : null}
+        {vista === 'inventario' ? <InventarioView /> : null}
         {vista === 'gantt_admin' ? <GanttAdminView /> : null}
         {vista === 'ajustes' ? <AjustesView /> : null}
       </main>
