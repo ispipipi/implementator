@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, Building2, CalendarRange, ListTodo, LogOut, Package, Settings } from 'lucide-react';
+import { BriefcaseBusiness, Building2, CalendarRange, ListTodo, LogOut, Settings } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { usePermisos } from '../../hooks/usePermisos';
 import { auth } from '../../services/firebaseClient';
@@ -54,10 +54,6 @@ export function Header() {
             <button className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/8" onClick={() => setVista('info_cliente')}>
               <Building2 className="h-4 w-4" />
               Info cliente
-            </button>
-            <button className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/8" onClick={() => setVista('inventario')}>
-              <Package className="h-4 w-4" />
-              Inventario
             </button>
             {puedeVerGanttAdmin || puedeGestionarUsuarios || puedeAdministrar ? (
               <>

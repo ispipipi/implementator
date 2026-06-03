@@ -104,9 +104,6 @@ export const useAppStore = create<AppState>()(
       tareas: SEED_DATA.tareas,
       alertas: [],
       expedientes: {},
-      bodegasInventario: [],
-      productosInventario: [],
-      movimientosInventario: [],
       vista: 'dashboard',
       proyectoActivoId: null,
       faseActivaId: null,
@@ -139,9 +136,6 @@ export const useAppStore = create<AppState>()(
           tareas: estado.tareas ?? get().tareas,
           alertas: estado.alertas ?? get().alertas,
           expedientes: estado.expedientes ?? get().expedientes,
-          bodegasInventario: estado.bodegasInventario ?? get().bodegasInventario,
-          productosInventario: estado.productosInventario ?? get().productosInventario,
-          movimientosInventario: estado.movimientosInventario ?? get().movimientosInventario,
           diasAnticipacionAlerta: estado.diasAnticipacionAlerta ?? get().diasAnticipacionAlerta,
           fuenteGoogleSheetsUrl: estado.fuenteGoogleSheetsUrl ?? get().fuenteGoogleSheetsUrl,
           sincronizadoRemotoEn: new Date().toISOString(),
@@ -445,65 +439,6 @@ export const useAppStore = create<AppState>()(
         guardarRemoto(get(), 'eliminar_acceso_expediente');
       },
 
-      crearBodegaInventario: (bodega) => {
-        if (!bodega.nombre.trim()) return;
-        set((s) => ({
-          bodegasInventario: [...s.bodegasInventario, { ...bodega, id: makeId('bodega') }],
-        }));
-        guardarRemoto(get(), 'crear_bodega_inventario');
-      },
-
-      crearProductoInventario: (producto) => {
-        if (!producto.nombre.trim()) return;
-        set((s) => ({
-          productosInventario: [...s.productosInventario, { ...producto, id: makeId('producto') }],
-        }));
-        guardarRemoto(get(), 'crear_producto_inventario');
-      },
-
-      registrarCompraInventario: (movimiento) => {
-        if (!movimiento.bodegaId || !movimiento.productoId || movimiento.cantidad <= 0) return;
-        const usuario = get().usuarioActivo?.nombre ?? 'Sistema';
-        set((s) => ({
-          movimientosInventario: [
-            {
-              ...movimiento,
-              id: makeId('mov-inv'),
-              tipo: 'compra',
-              creadoPor: usuario,
-              creadoEn: new Date().toISOString(),
-            },
-            ...s.movimientosInventario,
-          ],
-        }));
-        guardarRemoto(get(), 'registrar_compra_inventario');
-      },
-
-      registrarSolicitudActividadInventario: (movimiento) => {
-        if (!movimiento.bodegaId || !movimiento.productoId || movimiento.cantidad <= 0) return;
-        const usuario = get().usuarioActivo?.nombre ?? 'Sistema';
-        set((s) => ({
-          movimientosInventario: [
-            {
-              ...movimiento,
-              id: makeId('mov-inv'),
-              tipo: 'actividad',
-              creadoPor: usuario,
-              creadoEn: new Date().toISOString(),
-            },
-            ...s.movimientosInventario,
-          ],
-        }));
-        guardarRemoto(get(), 'registrar_solicitud_actividad_inventario');
-      },
-
-      eliminarMovimientoInventario: (id) => {
-        set((s) => ({
-          movimientosInventario: s.movimientosInventario.filter((movimiento) => movimiento.id !== id),
-        }));
-        guardarRemoto(get(), 'eliminar_movimiento_inventario');
-      },
-
       recalcularAlertas: () => {
         const { tareas, diasAnticipacionAlerta, alertas } = get();
         const hoy = new Date();
@@ -603,9 +538,6 @@ export const useAppStore = create<AppState>()(
         tareas: state.tareas,
         alertas: state.alertas,
         expedientes: state.expedientes,
-        bodegasInventario: state.bodegasInventario,
-        productosInventario: state.productosInventario,
-        movimientosInventario: state.movimientosInventario,
         diasAnticipacionAlerta: state.diasAnticipacionAlerta,
         fuenteGoogleSheetsUrl: state.fuenteGoogleSheetsUrl,
       }),

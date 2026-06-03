@@ -169,43 +169,7 @@ export interface ExpedienteProyecto {
   accesos: AccesoCompania[];
 }
 
-export interface BodegaInventario {
-  id: string;
-  nombre: string;
-  ubicacion: string;
-  responsable: string;
-  activa: boolean;
-}
-
-export interface ProductoInventario {
-  id: string;
-  codigo: string;
-  nombre: string;
-  categoria: string;
-  unidad: string;
-  stockMinimo: number;
-  activo: boolean;
-}
-
-export type TipoMovimientoInventario = 'compra' | 'actividad';
-
-export interface MovimientoInventario {
-  id: string;
-  tipo: TipoMovimientoInventario;
-  bodegaId: string;
-  productoId: string;
-  cantidad: number;
-  proyectoId?: string;
-  tareaId?: string;
-  solicitante?: string;
-  proveedor?: string;
-  documento?: string;
-  notas?: string;
-  creadoPor: string;
-  creadoEn: string;
-}
-
-export type Vista = 'dashboard' | 'proyectos' | 'proyecto' | 'fase' | 'mis_tareas' | 'info_cliente' | 'inventario' | 'gantt_admin' | 'ajustes';
+export type Vista = 'dashboard' | 'proyectos' | 'proyecto' | 'fase' | 'mis_tareas' | 'info_cliente' | 'gantt_admin' | 'ajustes';
 
 export interface AppState {
   usuarioActivo: UsuarioActivo | null;
@@ -217,9 +181,6 @@ export interface AppState {
   tareas: Tarea[];
   alertas: Alerta[];
   expedientes: Record<string, ExpedienteProyecto>;
-  bodegasInventario: BodegaInventario[];
-  productosInventario: ProductoInventario[];
-  movimientosInventario: MovimientoInventario[];
   vista: Vista;
   proyectoActivoId: string | null;
   faseActivaId: string | null;
@@ -232,7 +193,7 @@ export interface AppState {
   setTema: (tema: TemaApp) => void;
   alternarTema: () => void;
   setFuenteGoogleSheetsUrl: (url: string) => void;
-  aplicarEstadoCompartido: (estado: Partial<Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'bodegasInventario' | 'productosInventario' | 'movimientosInventario' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>>) => void;
+  aplicarEstadoCompartido: (estado: Partial<Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>>) => void;
   crearPerfil: (perfil: Omit<UsuarioActivo, 'id'>) => void;
   actualizarPerfil: (id: string, cambios: Partial<UsuarioActivo>) => void;
   eliminarPerfil: (id: string) => void;
@@ -257,10 +218,5 @@ export interface AppState {
   eliminarDocumentoExpediente: (proyectoId: string, documentoId: string) => void;
   guardarAccesoExpediente: (proyectoId: string, acceso: Omit<AccesoCompania, 'id' | 'actualizadoEn' | 'actualizadoPor'> & { id?: string }) => void;
   eliminarAccesoExpediente: (proyectoId: string, accesoId: string) => void;
-  crearBodegaInventario: (bodega: Omit<BodegaInventario, 'id'>) => void;
-  crearProductoInventario: (producto: Omit<ProductoInventario, 'id'>) => void;
-  registrarCompraInventario: (movimiento: Omit<MovimientoInventario, 'id' | 'tipo' | 'creadoPor' | 'creadoEn'>) => void;
-  registrarSolicitudActividadInventario: (movimiento: Omit<MovimientoInventario, 'id' | 'tipo' | 'creadoPor' | 'creadoEn' | 'proveedor' | 'documento'>) => void;
-  eliminarMovimientoInventario: (id: string) => void;
   recalcularAlertas: () => void;
 }
