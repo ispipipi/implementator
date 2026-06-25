@@ -12,3 +12,10 @@ export const diasVencida = (tarea: Tarea) => {
 };
 
 export const tareaEstaVencida = (tarea: Tarea) => diasVencida(tarea) > 0;
+
+export const tareaVenceHoy = (tarea: Tarea) => diasParaVencimiento(tarea) === 0;
+
+export const tareaVencePronto = (tarea: Tarea, maxDias = 2) => {
+  const dias = diasParaVencimiento(tarea);
+  return dias !== null && dias > 0 && dias <= maxDias;
+};

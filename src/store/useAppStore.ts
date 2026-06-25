@@ -19,6 +19,16 @@ import {
   semaforoProyecto,
 } from '../utils/progressCalc';
 import { normalizarResponsable } from '../utils/assignee';
+import {
+  canonicalizarResponsable,
+  sanitizarAlertas,
+  sanitizarEjecutivo,
+  sanitizarExpedientes,
+  sanitizarFase,
+  sanitizarProyecto,
+  sanitizarTarea,
+  sanitizarUsuario,
+} from '../utils/dataIntegrity';
 
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
 
@@ -29,6 +39,40 @@ const guardarRemoto = (state: AppState, motivo: string) => {
 };
 
 const expedienteVacio = (): ExpedienteProyecto => ({ documentos: [], accesos: [] });
+const obtenerPersonasActivas = (state: Pick<AppState, 'perfiles' | 'ejecutivos'>) => [
+  ...state.perfiles.filter((perfil) => perfil.activo !== false),
+  ...state.ejecutivos,
+];
+
+const sanitizarSlicesCompartidos = (
+  estado: Partial<
+    Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>
+  >,
+  fallback: Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>,
+) => {
+  const perfiles = asegurarPerfilesBase((estado.perfiles ?? fallback.perfiles).map(sanitizarUsuario));
+  const perfilesAcceso = asegurarPerfilesAccesoBase(estado.perfilesAcceso ?? fallback.perfilesAcceso);
+  const ejecutivos = (estado.ejecutivos ?? fallback.ejecutivos).map(sanitizarEjecutivo);
+  const proyectos = (estado.proyectos ?? fallback.proyectos).map(sanitizarProyecto);
+  const fases = (estado.fases ?? fallback.fases).map((fase, index) => sanitizarFase(fase, index));
+  const personas = [...perfiles.filter((perfil) => perfil.activo !== false), ...ejecutivos];
+  const tareas = (estado.tareas ?? fallback.tareas).map((tarea) => sanitizarTarea(tarea, personas));
+  const alertas = sanitizarAlertas(estado.alertas ?? fallback.alertas, tareas, proyectos, personas);
+  const expedientes = sanitizarExpedientes(estado.expedientes ?? fallback.expedientes);
+
+  return {
+    perfiles,
+    perfilesAcceso,
+    ejecutivos,
+    proyectos,
+    fases,
+    tareas,
+    alertas,
+    expedientes,
+    diasAnticipacionAlerta: estado.diasAnticipacionAlerta ?? fallback.diasAnticipacionAlerta,
+    fuenteGoogleSheetsUrl: estado.fuenteGoogleSheetsUrl ?? fallback.fuenteGoogleSheetsUrl,
+  };
+};
 
 const asegurarPerfilesBase = (perfiles: AppState['perfiles']) => {
   if (perfiles.length) return perfiles;
@@ -107,6 +151,10 @@ export const useAppStore = create<AppState>()(
       vista: 'dashboard',
       proyectoActivoId: null,
       faseActivaId: null,
+      tareaActivaId: null,
+      busquedaTareas: '',
+      filtroTareasVista: 'todas',
+      ordenTareasVista: 'criticas',
       diasAnticipacionAlerta: 3,
       tema: 'noche',
       fuenteGoogleSheetsUrl: GOOGLE_SHEETS_GANTT_URL,
@@ -116,6 +164,14 @@ export const useAppStore = create<AppState>()(
 
       setVista: (vista, proyectoId, faseId) =>
         set({ vista, proyectoActivoId: proyectoId ?? null, faseActivaId: faseId ?? null }),
+
+      setTareaActiva: (tareaId) => set({ tareaActivaId: tareaId }),
+
+      setBusquedaTareas: (value) => set({ busquedaTareas: value }),
+
+      setFiltroTareasVista: (value) => set({ filtroTareasVista: value }),
+
+      setOrdenTareasVista: (value) => set({ ordenTareasVista: value }),
 
       setTema: (tema) => set({ tema }),
 
@@ -128,16 +184,18 @@ export const useAppStore = create<AppState>()(
 
       aplicarEstadoCompartido: (estado) =>
         set({
-          perfiles: asegurarPerfilesBase(estado.perfiles ?? get().perfiles),
-          perfilesAcceso: asegurarPerfilesAccesoBase(estado.perfilesAcceso ?? get().perfilesAcceso),
-          ejecutivos: estado.ejecutivos ?? get().ejecutivos,
-          proyectos: estado.proyectos ?? get().proyectos,
-          fases: estado.fases ?? get().fases,
-          tareas: estado.tareas ?? get().tareas,
-          alertas: estado.alertas ?? get().alertas,
-          expedientes: estado.expedientes ?? get().expedientes,
-          diasAnticipacionAlerta: estado.diasAnticipacionAlerta ?? get().diasAnticipacionAlerta,
-          fuenteGoogleSheetsUrl: estado.fuenteGoogleSheetsUrl ?? get().fuenteGoogleSheetsUrl,
+          ...sanitizarSlicesCompartidos(estado, {
+            perfiles: get().perfiles,
+            perfilesAcceso: get().perfilesAcceso,
+            ejecutivos: get().ejecutivos,
+            proyectos: get().proyectos,
+            fases: get().fases,
+            tareas: get().tareas,
+            alertas: get().alertas,
+            expedientes: get().expedientes,
+            diasAnticipacionAlerta: get().diasAnticipacionAlerta,
+            fuenteGoogleSheetsUrl: get().fuenteGoogleSheetsUrl,
+          }),
           sincronizadoRemotoEn: new Date().toISOString(),
         }),
 
@@ -207,9 +265,16 @@ export const useAppStore = create<AppState>()(
 
       reemplazarPlanificacionProyecto: (proyectoId, fasesImportadas, tareasImportadas, usuario, fechas) => {
         const ahora = new Date().toISOString();
+        const personas = [...get().perfiles.filter((perfil) => perfil.activo !== false), ...get().ejecutivos];
         const fasesConAuditoria = fasesImportadas.map((fase) => ({ ...fase, proyectoId }));
         const tareasConAuditoria = tareasImportadas.map((tarea) => ({
-          ...tarea,
+          ...sanitizarTarea(
+            {
+              ...tarea,
+              responsable: canonicalizarResponsable(tarea.responsable, personas),
+            },
+            personas,
+          ),
           proyectoId,
           actualizadoEn: ahora,
           historial: [
@@ -244,12 +309,14 @@ export const useAppStore = create<AppState>()(
       },
 
       actualizarTarea: (id, cambios, usuario) => {
-        const { tareas } = get();
+        const { tareas, perfiles, ejecutivos } = get();
         const tareaActual = tareas.find((t) => t.id === id);
         if (!tareaActual) return;
+        const personas = obtenerPersonasActivas({ perfiles, ejecutivos });
+        const timestamp = new Date().toISOString();
 
         const historialEntry = Object.entries(cambios).map(([campo, nuevo]) => ({
-          fecha: new Date().toISOString(),
+          fecha: timestamp,
           campo,
           valorAnterior: String(tareaActual[campo as keyof Tarea] ?? ''),
           valorNuevo: String(nuevo ?? ''),
@@ -259,12 +326,15 @@ export const useAppStore = create<AppState>()(
         set({
           tareas: tareas.map((t) =>
             t.id === id
-              ? {
-                  ...t,
-                  ...cambios,
-                  actualizadoEn: new Date().toISOString(),
-                  historial: [...(t.historial || []), ...historialEntry].slice(-10),
-                }
+              ? sanitizarTarea(
+                  {
+                    ...t,
+                    ...cambios,
+                    actualizadoEn: timestamp,
+                    historial: [...(t.historial || []), ...historialEntry].slice(-10),
+                  },
+                  personas,
+                )
               : t,
           ),
         });
@@ -285,19 +355,274 @@ export const useAppStore = create<AppState>()(
       },
 
       crearTarea: (t) => {
+        const personas = [...get().perfiles.filter((perfil) => perfil.activo !== false), ...get().ejecutivos];
         set((s) => ({
           tareas: [
             ...s.tareas,
-            {
-              ...t,
-              id: makeId('tarea'),
-              actualizadoEn: new Date().toISOString(),
-              historial: [],
-            },
+            sanitizarTarea(
+              {
+                ...t,
+                responsable: canonicalizarResponsable(t.responsable, personas),
+                id: makeId('tarea'),
+                actualizadoEn: new Date().toISOString(),
+                historial: [],
+              },
+              personas,
+            ),
           ],
         }));
         get().recalcularAlertas();
         guardarRemoto(get(), 'crear_tarea');
+      },
+
+      reportarImpedimentoTarea: ({ tareaOrigenId, responsableDestrabe, motivo, usuario }) => {
+        const { tareas, fases, perfiles, ejecutivos } = get();
+        const tareaOrigen = tareas.find((tarea) => tarea.id === tareaOrigenId);
+        if (!tareaOrigen) return;
+        const personas = obtenerPersonasActivas({ perfiles, ejecutivos });
+        const responsableCanonico = canonicalizarResponsable(responsableDestrabe, personas);
+
+        const faseOrigen = fases.find((fase) => fase.id === tareaOrigen.faseId);
+        const hoy = new Date();
+        const fechaInicio = format(hoy, 'yyyy-MM-dd');
+        const fechaFin = format(addDays(hoy, 1), 'yyyy-MM-dd');
+        const timestamp = hoy.toISOString();
+        const comentarioBloqueo = {
+          id: `comentario-${crypto.randomUUID?.() ?? Date.now()}`,
+          texto: `Impedimento reportado a ${responsableCanonico}: ${motivo}`,
+          usuario,
+          fecha: timestamp,
+        };
+        const nuevaTareaId = makeId('tarea');
+        const nuevaTarea: Tarea = {
+          id: nuevaTareaId,
+          faseId: tareaOrigen.faseId,
+          proyectoId: tareaOrigen.proyectoId,
+          nombre: `Destrabar: ${tareaOrigen.nombre}`,
+          descripcion: [
+            `Tarea origen: ${tareaOrigen.nombre}`,
+            faseOrigen ? `Fase: ${faseOrigen.codigo} · ${faseOrigen.nombre}` : '',
+            `Motivo: ${motivo}`,
+          ]
+            .filter(Boolean)
+            .join('\n'),
+          responsable: responsableCanonico,
+          estado: 'pendiente',
+          fechaInicioPlan: fechaInicio,
+          fechaFinPlan: fechaFin,
+          duracionDias: 1,
+          esMilestone: false,
+          observacion: '',
+          comentarios: [
+            {
+              id: `comentario-${crypto.randomUUID?.() ?? Date.now()}-destrabe`,
+              texto: `Solicitud creada por ${usuario} para destrabar "${tareaOrigen.nombre}". Motivo: ${motivo}`,
+              usuario,
+              fecha: timestamp,
+            },
+          ],
+          actualizadoEn: timestamp,
+          historial: [
+            {
+              fecha: timestamp,
+              campo: 'responsable',
+              valorAnterior: '',
+              valorNuevo: responsableCanonico,
+              usuario,
+            },
+            {
+              fecha: timestamp,
+              campo: 'origen_impedimento',
+              valorAnterior: '',
+              valorNuevo: tareaOrigen.nombre,
+              usuario,
+            },
+          ],
+        };
+
+        set((s) => ({
+          tareas: s.tareas.map((tarea) =>
+            tarea.id === tareaOrigenId
+              ? {
+                  ...tarea,
+                  estado: 'bloqueada' as const,
+                  actualizadoEn: timestamp,
+                  comentarios: [...(tarea.comentarios ?? []), comentarioBloqueo],
+                  historial: [
+                    ...(tarea.historial ?? []),
+                    {
+                      fecha: timestamp,
+                      campo: 'estado',
+                      valorAnterior: tarea.estado,
+                      valorNuevo: 'bloqueada',
+                      usuario,
+                    },
+                    {
+                      fecha: timestamp,
+                      campo: 'impedimento',
+                      valorAnterior: '',
+                      valorNuevo: `${responsableCanonico}: ${motivo}`,
+                      usuario,
+                    },
+                  ].slice(-10),
+                }
+              : tarea,
+          ).concat(sanitizarTarea(nuevaTarea, personas)),
+        }));
+        get().recalcularAlertas();
+        guardarRemoto(get(), 'reportar_impedimento_tarea');
+      },
+
+      solicitarReasignacionTarea: ({ tareaId, nuevoResponsable, motivo, usuario }) => {
+        const { tareas, perfiles, ejecutivos } = get();
+        const tareaActual = tareas.find((tarea) => tarea.id === tareaId);
+        if (!tareaActual) return;
+
+        const personas = obtenerPersonasActivas({ perfiles, ejecutivos });
+        const nuevoResponsableCanonico = canonicalizarResponsable(nuevoResponsable, personas);
+        const motivoLimpio = motivo.trim();
+        if (
+          !nuevoResponsableCanonico ||
+          !motivoLimpio ||
+          normalizarResponsable(nuevoResponsableCanonico) === normalizarResponsable(tareaActual.responsable)
+        ) {
+          return;
+        }
+
+        const timestamp = new Date().toISOString();
+        set({
+          tareas: tareas.map((tarea) =>
+            tarea.id === tareaId
+              ? sanitizarTarea(
+                  {
+                    ...tarea,
+                    actualizadoEn: timestamp,
+                    reasignacionPendiente: {
+                      solicitante: usuario,
+                      destinatario: nuevoResponsableCanonico,
+                      motivo: motivoLimpio,
+                      solicitadaEn: timestamp,
+                      estado: 'pendiente',
+                    },
+                    comentarios: [
+                      ...(tarea.comentarios ?? []),
+                      {
+                        id: `comentario-${crypto.randomUUID?.() ?? Date.now()}-reasignacion`,
+                        texto: `Solicitud de reasignación enviada a ${nuevoResponsableCanonico}. Motivo: ${motivoLimpio}`,
+                        usuario,
+                        fecha: timestamp,
+                      },
+                    ],
+                    historial: [
+                      ...(tarea.historial ?? []),
+                      {
+                        fecha: timestamp,
+                        campo: 'solicitud_reasignacion',
+                        valorAnterior: tarea.responsable,
+                        valorNuevo: `${nuevoResponsableCanonico}: ${motivoLimpio}`,
+                        usuario,
+                      },
+                    ].slice(-10),
+                  },
+                  personas,
+                )
+              : tarea,
+          ),
+        });
+        get().recalcularAlertas();
+        guardarRemoto(get(), 'solicitar_reasignacion_tarea');
+      },
+
+      resolverReasignacionTarea: ({ tareaId, accion, usuario, motivo }) => {
+        const { tareas, perfiles, ejecutivos } = get();
+        const tareaActual = tareas.find((tarea) => tarea.id === tareaId);
+        if (!tareaActual?.reasignacionPendiente) return;
+
+        const personas = obtenerPersonasActivas({ perfiles, ejecutivos });
+        const solicitud = tareaActual.reasignacionPendiente;
+        const timestamp = new Date().toISOString();
+
+        if (accion === 'rechazar' && !motivo?.trim()) return;
+
+        set({
+          tareas: tareas.map((tarea) => {
+            if (tarea.id !== tareaId) return tarea;
+
+            if (accion === 'aceptar') {
+              return sanitizarTarea(
+                {
+                  ...tarea,
+                  responsable: solicitud.destinatario,
+                  actualizadoEn: timestamp,
+                  reasignacionPendiente: null,
+                  comentarios: [
+                    ...(tarea.comentarios ?? []),
+                    {
+                      id: `comentario-${crypto.randomUUID?.() ?? Date.now()}-reasignacion-aceptada`,
+                      texto: `${usuario} aceptó la reasignación y tomó la tarea.`,
+                      usuario,
+                      fecha: timestamp,
+                    },
+                  ],
+                  historial: [
+                    ...(tarea.historial ?? []),
+                    {
+                      fecha: timestamp,
+                      campo: 'responsable',
+                      valorAnterior: tarea.responsable,
+                      valorNuevo: solicitud.destinatario,
+                      usuario,
+                    },
+                    {
+                      fecha: timestamp,
+                      campo: 'reasignacion_resuelta',
+                      valorAnterior: 'pendiente',
+                      valorNuevo: 'aceptada',
+                      usuario,
+                    },
+                  ].slice(-10),
+                },
+                personas,
+              );
+            }
+
+            const motivoRechazo = motivo?.trim() ?? '';
+            return sanitizarTarea(
+              {
+                ...tarea,
+                actualizadoEn: timestamp,
+                reasignacionPendiente: {
+                  ...solicitud,
+                  estado: 'rechazada',
+                  respuesta: motivoRechazo,
+                  respondidaEn: timestamp,
+                },
+                comentarios: [
+                  ...(tarea.comentarios ?? []),
+                  {
+                    id: `comentario-${crypto.randomUUID?.() ?? Date.now()}-reasignacion-rechazada`,
+                    texto: `${usuario} rechazó la reasignación. Motivo: ${motivoRechazo}`,
+                    usuario,
+                    fecha: timestamp,
+                  },
+                ],
+                historial: [
+                  ...(tarea.historial ?? []),
+                  {
+                    fecha: timestamp,
+                    campo: 'reasignacion_rechazada',
+                    valorAnterior: solicitud.destinatario,
+                    valorNuevo: motivoRechazo,
+                    usuario,
+                  },
+                ].slice(-10),
+              },
+              personas,
+            );
+          }),
+        });
+        get().recalcularAlertas();
+        guardarRemoto(get(), accion === 'aceptar' ? 'aceptar_reasignacion_tarea' : 'rechazar_reasignacion_tarea');
       },
 
       eliminarTarea: (id) => {
@@ -498,6 +823,28 @@ export const useAppStore = create<AppState>()(
             });
           }
 
+          if (tarea.reasignacionPendiente?.estado === 'pendiente') {
+            agregarAlerta({
+              id: `alerta-solicitud-reasignacion-${tarea.id}-${tarea.reasignacionPendiente.solicitadaEn}`,
+              proyectoId: tarea.proyectoId,
+              tareaId: tarea.id,
+              tipo: 'solicitud_reasignacion',
+              mensaje: `${tarea.reasignacionPendiente.solicitante} quiere reasignarte: ${tarea.nombre}`,
+              destinatario: tarea.reasignacionPendiente.destinatario,
+            });
+          }
+
+          if (tarea.reasignacionPendiente?.estado === 'rechazada') {
+            agregarAlerta({
+              id: `alerta-reasignacion-rechazada-${tarea.id}-${tarea.reasignacionPendiente.respondidaEn ?? tarea.reasignacionPendiente.solicitadaEn}`,
+              proyectoId: tarea.proyectoId,
+              tareaId: tarea.id,
+              tipo: 'reasignacion_rechazada',
+              mensaje: `${tarea.reasignacionPendiente.destinatario} rechazó la reasignación de ${tarea.nombre}: ${tarea.reasignacionPendiente.respuesta || 'Sin motivo'}`,
+              destinatario: tarea.reasignacionPendiente.solicitante,
+            });
+          }
+
           const cambiosResponsable = (tarea.historial ?? []).filter((item) => item.campo === 'responsable');
           const ultimoCambioResponsable = cambiosResponsable[cambiosResponsable.length - 1];
           const responsableActual = normalizarResponsable(tarea.responsable);
@@ -526,7 +873,22 @@ export const useAppStore = create<AppState>()(
         const persisted = persistedState as Partial<AppState> | undefined;
         if (!persisted) return currentState;
         const { tema: _tema, ...persistedWithoutTheme } = persisted;
-        return { ...currentState, ...persistedWithoutTheme };
+        return {
+          ...currentState,
+          ...persistedWithoutTheme,
+          ...sanitizarSlicesCompartidos(persistedWithoutTheme, {
+            perfiles: currentState.perfiles,
+            perfilesAcceso: currentState.perfilesAcceso,
+            ejecutivos: currentState.ejecutivos,
+            proyectos: currentState.proyectos,
+            fases: currentState.fases,
+            tareas: currentState.tareas,
+            alertas: currentState.alertas,
+            expedientes: currentState.expedientes,
+            diasAnticipacionAlerta: currentState.diasAnticipacionAlerta,
+            fuenteGoogleSheetsUrl: currentState.fuenteGoogleSheetsUrl,
+          }),
+        };
       },
       partialize: (state) => ({
         usuarioActivo: state.usuarioActivo,

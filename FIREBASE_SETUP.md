@@ -35,6 +35,34 @@ En el repositorio GitHub, ir a Settings > Secrets and variables > Actions > New 
 
 Luego ejecutar un nuevo deploy con `git push`.
 
+## 4.1 Correos transaccionales con Resend y dominio npr.cl
+
+Si quieres que los correos salgan desde `noreply@npr.cl` y no desde Firebase:
+
+1. Crear cuenta en Resend.
+2. Agregar y verificar el dominio o subdominio de envio.
+3. En Cloudflare, copiar los registros SPF y DKIM que entregue Resend.
+4. Crear una API key en Resend.
+5. En Firebase Functions, configurar el secreto:
+
+   - `firebase functions:secrets:set RESEND_API_KEY`
+
+6. Configurar variables runtime para Functions:
+
+   - `APP_PUBLIC_URL=https://implementator.npr.cl/`
+   - `RESEND_FROM_EMAIL=Implementator <noreply@npr.cl>`
+
+7. En el frontend, agregar variable:
+
+   - `VITE_AUTH_EMAILS_API_BASE=https://us-central1-<tu-proyecto>.cloudfunctions.net`
+
+8. Instalar dependencias de `functions/` y desplegar:
+
+   - `cd functions && npm install`
+   - `cd .. && firebase deploy --only functions`
+
+Con esa variable `VITE_AUTH_EMAILS_API_BASE`, el frontend deja de usar el correo nativo de Firebase y pasa a usar las Functions que envian via Resend.
+
 ## 5. Primer ingreso
 
 Si todavia no hay emails configurados en el mantenedor de perfiles, el primer usuario autenticado queda como administrador inicial. Luego ese administrador puede entrar a Ajustes > Mantenedor de perfiles y asociar cada email con su rol.

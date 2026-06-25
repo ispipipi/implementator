@@ -12,7 +12,7 @@ import {
   semaforoCumplimientoFase,
   semaforoCumplimientoProyecto,
 } from '../../store/useAppStore';
-import { Alerta, EstadoSemaforo, Fase, Proyecto, Tarea } from '../../types';
+import { Alerta, EstadoSemaforo, Fase, FiltroTareasVista, OrdenTareasVista, Proyecto, Tarea } from '../../types';
 import { alertaVisibleParaUsuario } from '../../utils/assignee';
 import { GlassCard } from '../ui/GlassCard';
 import { ProgressBar } from '../ui/ProgressBar';
@@ -57,7 +57,7 @@ const semaforoText: Record<EstadoSemaforo, string> = { rojo: 'Critico', amarillo
 
 export function DashboardView() {
   const proyectos = useProyectosVisibles();
-  const { tareas, fases, alertas, setVista, usuarioActivo } = useAppStore();
+  const { tareas, fases, alertas, setVista, usuarioActivo, setBusquedaTareas, setFiltroTareasVista, setOrdenTareasVista } = useAppStore();
   const { esCliente } = usePermisos();
   const [kpiActivo, setKpiActivo] = useState<KpiDetalle | null>(null);
   const [proyectoDrillId, setProyectoDrillId] = useState<string | null>(null);
@@ -203,6 +203,20 @@ export function DashboardView() {
     setTareaSeleccionada(null);
   };
 
+  const abrirModoAccion = (filtro: FiltroTareasVista, orden: OrdenTareasVista = 'criticas') => {
+    setBusquedaTareas('');
+    setFiltroTareasVista(filtro);
+    setOrdenTareasVista(orden);
+    setVista('mis_tareas');
+  };
+
+  const abrirProyectos = () => {
+    setBusquedaTareas('');
+    setFiltroTareasVista('todas');
+    setOrdenTareasVista('criticas');
+    setVista('proyectos');
+  };
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <section className="space-y-6">
@@ -236,13 +250,16 @@ export function DashboardView() {
                   artBPO puede navegar desde el portafolio hasta cada fase y tarea, con alertas calculadas desde las fechas planificadas.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-300" onClick={() => setVista('proyectos')}>
+                  <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-300" onClick={abrirProyectos}>
                     Ver proyectos
                     <ArrowRight className="h-4 w-4" />
                   </button>
+                  <button className="rounded-lg border border-white/10 px-4 py-2 font-medium text-slate-200 hover:bg-white/8" onClick={() => abrirModoAccion('atencion', 'criticas')}>
+                    Ir a pendientes críticos
+                  </button>
                 </div>
               </div>
-              <button className="grid gap-5 rounded-lg p-3 text-center transition hover:bg-white/[0.04] focus:outline-none focus:ring-2 focus:ring-emerald-300/40 sm:grid-cols-2 lg:grid-cols-1" onClick={() => abrirKpi('semaforo')}>
+              <button className="grid gap-5 rounded-lg p-3 text-center transition hover:bg-white/[0.04] focus:outline-none focus:ring-2 focus:ring-emerald-300/40 sm:grid-cols-2 lg:grid-cols-1" onClick={() => abrirModoAccion('atencion', 'criticas')}>
                 <div className="flex flex-col items-center gap-3">
                   <TrafficLightOrb estado={semaforo} size="lg" />
                   <div>
@@ -260,15 +277,34 @@ export function DashboardView() {
         )}
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {stats.map((stat) => (
+          {stats.map((stat) => {
+            const action =
+              stat.id === 'proyectos'
+                ? () => abrirProyectos()
+                : stat.id === 'completadas'
+                  ? () => abrirModoAccion('completadas', 'plan')
+                  : stat.id === 'en_proceso'
+                    ? () => abrirModoAccion('en_proceso', 'vence')
+                    : () => abrirModoAccion('atencion', 'criticas');
+            const helper =
+              stat.id === 'proyectos'
+                ? 'Abrir portafolio'
+                : stat.id === 'completadas'
+                  ? 'Abrir completadas'
+                  : stat.id === 'en_proceso'
+                    ? 'Abrir tareas activas'
+                    : 'Abrir bandeja crítica';
+
+            return (
             <GlassCard key={stat.label} interactive className={`p-0 ${kpiActivo === stat.id ? 'border-emerald-300/35 bg-emerald-300/10' : ''}`}>
-              <button className="h-full w-full p-5 text-left" onClick={() => abrirKpi(stat.id)}>
+              <button className="h-full w-full p-5 text-left" onClick={action}>
                 <stat.icon className={`mb-4 h-5 w-5 ${kpiActivo === stat.id ? 'text-emerald-200' : 'text-slate-400'}`} />
                 <p className="text-3xl font-semibold text-white">{stat.value}</p>
                 <p className="mt-1 text-sm text-slate-400">{stat.label}</p>
+                <p className="mt-3 text-xs font-medium text-emerald-200">{helper}</p>
               </button>
             </GlassCard>
-          ))}
+          )})}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">

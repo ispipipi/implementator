@@ -1,5 +1,5 @@
 import { AlertTriangle, Building2, CalendarDays, Edit3, FolderArchive, LayoutGrid, ListChecks, TimerReset } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePermisos } from '../../hooks/usePermisos';
 import { useAppStore, calcCumplimientoGanttProyecto, calcPctPlanificadoProyecto, calcPctProyecto, semaforoCumplimientoProyecto } from '../../store/useAppStore';
 import { Proyecto } from '../../types';
@@ -26,6 +26,12 @@ export function ProyectoDetail() {
   const tareasProyecto = tareas.filter((t) => t.proyectoId === proyectoActivoId);
   const faseActiva = fasesProyecto.find((f) => f.id === faseActivaId);
   const tareasFase = faseActiva ? tareasProyecto.filter((t) => t.faseId === faseActiva.id) : tareasProyecto;
+
+  useEffect(() => {
+    if (useAppStore.getState().tareaActivaId) {
+      setTab('tareas');
+    }
+  }, [proyectoActivoId, faseActivaId]);
 
   if (!proyecto) {
     return (

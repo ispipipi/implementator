@@ -9,6 +9,16 @@ export type PerfilApp = 'artbpo_admin' | 'artbpo_ejecutivo';
 export type PerfilUsuario = string;
 
 export type TemaApp = 'dia' | 'noche';
+export type FiltroTareasVista =
+  | 'todas'
+  | 'vencidas'
+  | 'hoy'
+  | 'proximas'
+  | 'bloqueadas'
+  | 'completadas'
+  | 'en_proceso'
+  | 'atencion';
+export type OrdenTareasVista = 'criticas' | 'vence' | 'nuevas' | 'plan';
 
 export interface UsuarioActivo {
   id: string;
@@ -20,6 +30,7 @@ export interface UsuarioActivo {
   email?: string;
   activo?: boolean;
   proyectoClienteId?: string;
+  proyectoIds?: string[];
 }
 
 export interface AccesosPerfil {
@@ -82,6 +93,16 @@ export interface Fase {
   fechaFinReal?: string;
 }
 
+export interface ReasignacionPendienteTarea {
+  solicitante: string;
+  destinatario: string;
+  motivo: string;
+  solicitadaEn: string;
+  estado: 'pendiente' | 'rechazada';
+  respuesta?: string;
+  respondidaEn?: string;
+}
+
 export interface Tarea {
   id: string;
   faseId: string;
@@ -104,6 +125,7 @@ export interface Tarea {
     fecha: string;
   }>;
   actualizadoEn: string;
+  reasignacionPendiente?: ReasignacionPendienteTarea | null;
   historial?: Array<{
     fecha: string;
     campo: string;
@@ -117,7 +139,14 @@ export interface Alerta {
   id: string;
   proyectoId: string;
   tareaId: string;
-  tipo: 'vencida' | 'proxima_vencer' | 'bloqueada' | 'en_riesgo' | 'reasignada';
+  tipo:
+    | 'vencida'
+    | 'proxima_vencer'
+    | 'bloqueada'
+    | 'en_riesgo'
+    | 'reasignada'
+    | 'solicitud_reasignacion'
+    | 'reasignacion_rechazada';
   mensaje: string;
   leida: boolean;
   creadaEn: string;
@@ -184,12 +213,20 @@ export interface AppState {
   vista: Vista;
   proyectoActivoId: string | null;
   faseActivaId: string | null;
+  tareaActivaId: string | null;
+  busquedaTareas: string;
+  filtroTareasVista: FiltroTareasVista;
+  ordenTareasVista: OrdenTareasVista;
   diasAnticipacionAlerta: number;
   tema: TemaApp;
   fuenteGoogleSheetsUrl: string;
   sincronizadoRemotoEn?: string;
   setUsuarioActivo: (u: UsuarioActivo | null) => void;
   setVista: (v: Vista, proyectoId?: string, faseId?: string) => void;
+  setTareaActiva: (tareaId: string | null) => void;
+  setBusquedaTareas: (value: string) => void;
+  setFiltroTareasVista: (value: FiltroTareasVista) => void;
+  setOrdenTareasVista: (value: OrdenTareasVista) => void;
   setTema: (tema: TemaApp) => void;
   alternarTema: () => void;
   setFuenteGoogleSheetsUrl: (url: string) => void;
@@ -207,6 +244,24 @@ export interface AppState {
   actualizarTarea: (id: string, cambios: Partial<Tarea>, usuario: string) => void;
   actualizarFechasGantt: (tareaId: string, inicio: string, fin: string) => void;
   crearTarea: (t: Omit<Tarea, 'id' | 'actualizadoEn' | 'historial'>) => void;
+  reportarImpedimentoTarea: (payload: {
+    tareaOrigenId: string;
+    responsableDestrabe: string;
+    motivo: string;
+    usuario: string;
+  }) => void;
+  solicitarReasignacionTarea: (payload: {
+    tareaId: string;
+    nuevoResponsable: string;
+    motivo: string;
+    usuario: string;
+  }) => void;
+  resolverReasignacionTarea: (payload: {
+    tareaId: string;
+    accion: 'aceptar' | 'rechazar';
+    usuario: string;
+    motivo?: string;
+  }) => void;
   eliminarTarea: (id: string) => void;
   marcarAlertaLeida: (id: string) => void;
   crearProyecto: (p: Omit<Proyecto, 'id' | 'creadoEn'>) => void;

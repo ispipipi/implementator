@@ -124,7 +124,7 @@ export function GanttAdminView() {
       setFuenteGoogleSheetsUrl(sheetUrl.trim());
       setSyncState({
         loading: false,
-        message: `Sincronizado: ${imported.fases.length} fases y ${imported.tareas.length} tareas/hitos. Omitidas: ${imported.skipped.length}.`,
+        message: `Sincronizado: ${imported.fases.length} fases y ${imported.tareas.length} tareas/hitos. Omitidas: ${imported.skipped.length}. Fechas corregidas: ${imported.correctedDates.length}.`,
         error: false,
       });
     } catch (error) {

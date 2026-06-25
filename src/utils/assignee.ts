@@ -23,7 +23,11 @@ export const responsableAsignadoAUsuario = (responsable: string, usuario: Usuari
 };
 
 export const alertaVisibleParaUsuario = (alerta: Alerta, usuario: UsuarioActivo | null) => {
+  if (alerta.destinatario) {
+    if (!usuario) return false;
+    return responsableAsignadoAUsuario(alerta.destinatario, usuario);
+  }
+
   if (alerta.tipo !== 'reasignada') return true;
-  if (!usuario || !alerta.destinatario) return false;
-  return responsableAsignadoAUsuario(alerta.destinatario, usuario);
+  return false;
 };

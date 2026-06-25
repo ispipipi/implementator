@@ -6,6 +6,11 @@ import {
   signOut,
 } from 'firebase/auth';
 import { auth, firebaseApp } from './firebaseClient';
+import {
+  customAuthEmailApiReady,
+  enviarCorreoAccesoPerfilApi,
+  enviarRecuperacionPasswordApi,
+} from './customAuthEmailApi';
 
 const SECONDARY_APP_NAME = 'implementator-user-provisioning';
 const DEFAULT_PUBLIC_URL = 'https://ispipipi.github.io/implementator/';
@@ -56,6 +61,11 @@ const mensajeFirebase = (error: unknown) => {
 
 export async function enviarCorreoAccesoPerfil(email: string) {
   const emailNormalizado = normalizarEmail(email);
+
+  if (customAuthEmailApiReady) {
+    return enviarCorreoAccesoPerfilApi(emailNormalizado);
+  }
+
   const provisioningAuth = getProvisioningAuth();
 
   if (!emailNormalizado) throw new Error('Ingresa un email para enviar el correo de acceso.');
@@ -102,6 +112,12 @@ export async function enviarRecuperacionPassword(email: string) {
   const emailNormalizado = normalizarEmail(email);
 
   if (!emailNormalizado) throw new Error('Ingresa tu email para crear una nueva contrasena.');
+
+  if (customAuthEmailApiReady) {
+    await enviarRecuperacionPasswordApi(emailNormalizado);
+    return;
+  }
+
   if (!auth) throw new Error('Firebase Auth no esta configurado.');
 
   prepararAuthParaEmail(auth);

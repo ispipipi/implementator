@@ -28,6 +28,7 @@ export type ImportedPlan = {
   fechaInicio: string;
   fechaFin: string;
   skipped: Array<{ row: number; reason: string; value: GoogleSheetPlanRow }>;
+  correctedDates: Array<{ row: number; field: 'inicio' | 'fin'; from: string; to: string; value: GoogleSheetPlanRow }>;
 };
 
 const estadoMap: Record<string, EstadoTarea> = {
@@ -77,6 +78,46 @@ const normalizeEstado = (value?: string): EstadoTarea => {
   return estadoMap[key] ?? 'pendiente';
 };
 
+const inferDominantYear = (rows: GoogleSheetPlanRow[]) => {
+  const counts = new Map<number, number>();
+  rows.forEach((row) => {
+    [row.inicio, row.fin].forEach((rawDate) => {
+      const normalized = normalizeDate(rawDate);
+      if (!normalized) return;
+      const year = Number(normalized.slice(0, 4));
+      counts.set(year, (counts.get(year) ?? 0) + 1);
+    });
+  });
+
+  let dominantYear: number | null = null;
+  let dominantCount = 0;
+  counts.forEach((count, year) => {
+    if (count > dominantCount) {
+      dominantYear = year;
+      dominantCount = count;
+    }
+  });
+
+  return { dominantYear, counts };
+};
+
+const maybeCorrectOutlierYear = (
+  normalizedDate: string | null,
+  dominantYear: number | null,
+  counts: Map<number, number>,
+) => {
+  if (!normalizedDate || !dominantYear) return normalizedDate;
+  const year = Number(normalizedDate.slice(0, 4));
+  if (year === dominantYear) return normalizedDate;
+
+  const dominantCount = counts.get(dominantYear) ?? 0;
+  const currentCount = counts.get(year) ?? 0;
+  const isLikelyOutlier = dominantCount >= 4 && currentCount <= 2 && Math.abs(year - dominantYear) === 1;
+  if (!isLikelyOutlier) return normalizedDate;
+
+  return `${dominantYear}${normalizedDate.slice(4)}`;
+};
+
 const normalizeHeader = (value: string) =>
   value
     .trim()
@@ -108,6 +149,8 @@ export function parseGoogleSheetPlan(payload: GoogleSheetPlanPayload | GoogleShe
   const fases: Fase[] = [];
   const tareas: Tarea[] = [];
   const skipped: ImportedPlan['skipped'] = [];
+  const correctedDates: ImportedPlan['correctedDates'] = [];
+  const { dominantYear, counts: yearCounts } = inferDominantYear(rows);
 
   const getPhase = (name: string) => {
     const cleanName = name.trim() || 'Sin fase';
@@ -160,14 +203,23 @@ export function parseGoogleSheetPlan(payload: GoogleSheetPlanPayload | GoogleShe
   let currentPhase = 'Planificacion';
 
   rows.forEach((row, index) => {
-    const inicio = normalizeDate(row.inicio);
-    const fin = normalizeDate(row.fin) ?? inicio;
+    const inicioOriginal = normalizeDate(row.inicio);
+    const finOriginal = normalizeDate(row.fin) ?? inicioOriginal;
+    const inicio = maybeCorrectOutlierYear(inicioOriginal, dominantYear, yearCounts);
+    const fin = maybeCorrectOutlierYear(finOriginal, dominantYear, yearCounts) ?? inicio;
     const faseFromRow = String(row.fase ?? '').trim();
     if (faseFromRow) currentPhase = faseFromRow;
     const faseName = currentPhase;
     const tareaName = String(row.tarea ?? '').trim();
     const hitoName = String(row.hito ?? '').trim();
     const tipo = String(row.tipo ?? '').trim().toLowerCase();
+
+    if (inicioOriginal && inicio && inicioOriginal !== inicio) {
+      correctedDates.push({ row: index + 2, field: 'inicio', from: inicioOriginal, to: inicio, value: row });
+    }
+    if (finOriginal && fin && finOriginal !== fin) {
+      correctedDates.push({ row: index + 2, field: 'fin', from: finOriginal, to: fin, value: row });
+    }
 
     if (!inicio || !fin) {
       skipped.push({ row: index + 2, reason: 'Fecha inicio/fin inválida o vacía', value: row });
@@ -205,6 +257,7 @@ export function parseGoogleSheetPlan(payload: GoogleSheetPlanPayload | GoogleShe
     fechaInicio: fechaInicio === '9999-12-31' ? new Date().toISOString().slice(0, 10) : fechaInicio,
     fechaFin: fechaFin === '0000-01-01' ? new Date().toISOString().slice(0, 10) : fechaFin,
     skipped,
+    correctedDates,
   };
 }
 

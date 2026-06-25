@@ -7,6 +7,7 @@ export const usePermisos = () => {
   const accesos = perfilAcceso?.accesos;
   const esCliente = accesos?.esCliente ?? perfil === 'cliente';
   const soloLectura = accesos?.soloLectura ?? perfil === 'comercial';
+  const esRexPlus = perfil === 'rex_plus';
 
   return {
     puedeEditarTareas: !!usuarioActivo && !soloLectura,
@@ -21,6 +22,7 @@ export const usePermisos = () => {
     esTMF: perfil === 'tmf',
     esCliente,
     esComercial: perfil === 'comercial' || soloLectura,
+    esRexPlus,
     soloLectura,
   };
 };
@@ -29,6 +31,10 @@ export const useProyectosVisibles = () => {
   const { proyectos, usuarioActivo, perfilesAcceso } = useAppStore();
   if (!usuarioActivo) return [];
   const perfilAcceso = perfilesAcceso.find((item) => item.id === usuarioActivo.perfil);
+  const proyectoIds = usuarioActivo.proyectoIds?.filter(Boolean) ?? [];
+  if (proyectoIds.length) {
+    return proyectos.filter((proyecto) => proyectoIds.includes(proyecto.id));
+  }
   if ((perfilAcceso?.accesos.esCliente ?? usuarioActivo.perfil === 'cliente') && usuarioActivo.proyectoClienteId) {
     return proyectos.filter((proyecto) => proyecto.id === usuarioActivo.proyectoClienteId);
   }
