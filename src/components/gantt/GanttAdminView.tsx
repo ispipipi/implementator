@@ -14,11 +14,26 @@ const estados: EstadoTarea[] = ['pendiente', 'en_proceso', 'completada', 'bloque
 const calcDuracion = (inicio: string, fin: string) => Math.max(0, differenceInCalendarDays(parseISO(fin), parseISO(inicio)));
 
 export function GanttAdminView() {
-  const { proyectos, fases, tareas, ejecutivos, actualizarTarea, crearTarea, eliminarTarea, usuarioActivo, fuenteGoogleSheetsUrl, setFuenteGoogleSheetsUrl, reemplazarPlanificacionProyecto } = useAppStore();
+  const {
+    proyectos,
+    fases,
+    tareas,
+    ejecutivos,
+    actualizarTarea,
+    actualizarProyecto,
+    crearTarea,
+    eliminarTarea,
+    usuarioActivo,
+    fuenteGoogleSheetsUrl,
+    setFuenteGoogleSheetsUrl,
+    reemplazarPlanificacionProyecto,
+    desplazarCronogramaProyecto,
+  } = useAppStore();
   const { puedeAdministrar } = usePermisos();
   const [proyectoId, setProyectoId] = useState(proyectos[0]?.id ?? '');
   const [sheetUrl, setSheetUrl] = useState(fuenteGoogleSheetsUrl);
   const [syncState, setSyncState] = useState<{ loading: boolean; message: string; error: boolean }>({ loading: false, message: '', error: false });
+  const [fechaInicioProyecto, setFechaInicioProyecto] = useState(proyectos[0]?.fechaInicio ?? new Date().toISOString().slice(0, 10));
 
   const fasesProyecto = useMemo(() => fases.filter((fase) => fase.proyectoId === proyectoId).sort((a, b) => a.orden - b.orden), [fases, proyectoId]);
   const tareasProyecto = useMemo(() => tareas.filter((tarea) => tarea.proyectoId === proyectoId).sort((a, b) => a.fechaInicioPlan.localeCompare(b.fechaInicioPlan)), [tareas, proyectoId]);
@@ -44,6 +59,12 @@ export function GanttAdminView() {
       fechaFinPlan: proyecto?.fechaInicio ?? s.fechaFinPlan,
     }));
   }, [fasesProyecto, proyecto]);
+
+  useEffect(() => {
+    if (proyecto?.fechaInicio) {
+      setFechaInicioProyecto(proyecto.fechaInicio);
+    }
+  }, [proyecto?.fechaInicio, proyectoId]);
 
   if (!puedeAdministrar) {
     return (
@@ -136,6 +157,21 @@ export function GanttAdminView() {
     }
   };
 
+  const ajustarInicioProyecto = () => {
+    if (!proyecto || !fechaInicioProyecto) return;
+    if (fechaInicioProyecto === proyecto.fechaInicio) {
+      setSyncState({ loading: false, message: 'La fecha de inicio ya coincide con la actual.', error: false });
+      return;
+    }
+
+    desplazarCronogramaProyecto(proyecto.id, fechaInicioProyecto, usuarioActivo?.nombre ?? 'Administrador');
+    setSyncState({
+      loading: false,
+      message: `Cronograma desplazado desde ${proyecto.fechaInicio} hacia ${fechaInicioProyecto}. Se ajustaron fases, tareas y go live.`,
+      error: false,
+    });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -152,6 +188,41 @@ export function GanttAdminView() {
           ))}
         </select>
       </div>
+
+      {proyecto ? (
+        <GlassCard className="p-5">
+          <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_auto_1fr] lg:items-end">
+            <label className="grid gap-2 text-sm text-slate-300">
+              Fecha de inicio del proyecto
+              <input
+                type="date"
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white"
+                value={fechaInicioProyecto}
+                onChange={(e) => setFechaInicioProyecto(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-300 px-4 py-3 font-semibold text-slate-950 hover:bg-sky-200"
+              onClick={ajustarInicioProyecto}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Correr cronograma
+            </button>
+            <div className="grid gap-1 text-sm text-slate-400">
+              <p>
+                Inicio actual: <span className="font-medium text-white">{proyecto.fechaInicio}</span>
+              </p>
+              <p>
+                Go live actual: <span className="font-medium text-white">{proyecto.fechaGoLive}</span>
+              </p>
+              <p className="text-xs text-slate-500">
+                Al cambiar la fecha de inicio, se desplazan en bloque las fechas planificadas de fases, tareas y la fecha go live.
+              </p>
+            </div>
+          </div>
+        </GlassCard>
+      ) : null}
 
       <GlassCard className="p-5">
         <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
@@ -307,7 +378,7 @@ export function GanttAdminView() {
 
       <div className="flex items-center gap-2 text-sm text-slate-500">
         <Save className="h-4 w-4" />
-        Los cambios quedan persistidos en el navegador mediante localStorage.
+        Los cambios quedan persistidos y el administrador puede desplazar el cronograma completo desde la fecha de inicio del proyecto.
       </div>
     </div>
   );

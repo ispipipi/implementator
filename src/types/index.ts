@@ -241,6 +241,7 @@ export interface AppState {
   actualizarPerfilAcceso: (id: string, cambios: Partial<PerfilAcceso>) => void;
   eliminarPerfilAcceso: (id: string) => void;
   reemplazarPlanificacionProyecto: (proyectoId: string, fases: Fase[], tareas: Tarea[], usuario: string, fechas?: { fechaInicio?: string; fechaFin?: string }) => void;
+  desplazarCronogramaProyecto: (proyectoId: string, nuevaFechaInicio: string, usuario: string) => void;
   actualizarTarea: (id: string, cambios: Partial<Tarea>, usuario: string) => void;
   actualizarFechasGantt: (tareaId: string, inicio: string, fin: string) => void;
   crearTarea: (t: Omit<Tarea, 'id' | 'actualizadoEn' | 'historial'>) => void;

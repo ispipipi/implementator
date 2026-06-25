@@ -1,4 +1,4 @@
-import { addDays, differenceInDays, format, parseISO } from 'date-fns';
+import { addDays, differenceInCalendarDays, differenceInDays, format, parseISO } from 'date-fns';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { PLANTILLA_FASES } from '../data/plantillaFases';
@@ -306,6 +306,66 @@ export const useAppStore = create<AppState>()(
         }));
         get().recalcularAlertas();
         guardarRemoto(get(), 'sincronizar_planificacion');
+      },
+
+      desplazarCronogramaProyecto: (proyectoId, nuevaFechaInicio, usuario) => {
+        const { proyectos, fases, tareas, perfiles, ejecutivos } = get();
+        const proyecto = proyectos.find((item) => item.id === proyectoId);
+        if (!proyecto || !nuevaFechaInicio) return;
+
+        const diasDesfase = differenceInCalendarDays(parseISO(nuevaFechaInicio), parseISO(proyecto.fechaInicio));
+        if (!Number.isFinite(diasDesfase) || diasDesfase === 0) return;
+
+        const personas = obtenerPersonasActivas({ perfiles, ejecutivos });
+        const timestamp = new Date().toISOString();
+        const moverFecha = (fecha: string) => format(addDays(parseISO(fecha), diasDesfase), 'yyyy-MM-dd');
+
+        set((state) => ({
+          proyectos: state.proyectos.map((item) =>
+            item.id === proyectoId
+              ? {
+                  ...item,
+                  fechaInicio: moverFecha(item.fechaInicio),
+                  fechaGoLive: moverFecha(item.fechaGoLive),
+                  observaciones: `${item.observaciones}${item.observaciones ? '\n' : ''}Cronograma desplazado ${diasDesfase > 0 ? `+${diasDesfase}` : diasDesfase} día(s) el ${new Date().toLocaleString('es-CL')}.`,
+                }
+              : item,
+          ),
+          fases: state.fases.map((fase) =>
+            fase.proyectoId === proyectoId
+              ? {
+                  ...fase,
+                  fechaInicioPlan: moverFecha(fase.fechaInicioPlan),
+                  fechaFinPlan: moverFecha(fase.fechaFinPlan),
+                }
+              : fase,
+          ),
+          tareas: state.tareas.map((tarea) =>
+            tarea.proyectoId === proyectoId
+              ? sanitizarTarea(
+                  {
+                    ...tarea,
+                    fechaInicioPlan: moverFecha(tarea.fechaInicioPlan),
+                    fechaFinPlan: moverFecha(tarea.fechaFinPlan),
+                    actualizadoEn: timestamp,
+                    historial: [
+                      ...(tarea.historial ?? []),
+                      {
+                        fecha: timestamp,
+                        campo: 'desplazamiento_cronograma',
+                        valorAnterior: proyecto.fechaInicio,
+                        valorNuevo: nuevaFechaInicio,
+                        usuario,
+                      },
+                    ].slice(-10),
+                  },
+                  personas,
+                )
+              : tarea,
+          ),
+        }));
+        get().recalcularAlertas();
+        guardarRemoto(get(), 'desplazar_cronograma_proyecto');
       },
 
       actualizarTarea: (id, cambios, usuario) => {
