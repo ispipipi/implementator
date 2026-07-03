@@ -191,13 +191,23 @@ export function GanttAdminView() {
           <h1 className="mt-2 text-3xl font-semibold text-white">Gantt completa</h1>
           <p className="mt-2 text-slate-400">Vista de administrador para ajustar fechas, estados, responsables y estructura de tareas.</p>
         </div>
-        <select className="min-w-72 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white" value={proyectoId} onChange={(e) => setProyectoId(e.target.value)}>
-          {proyectos.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nombre}
-            </option>
-          ))}
-        </select>
+        <div className="flex flex-wrap items-center gap-3">
+          <select className="min-w-72 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white" value={proyectoId} onChange={(e) => setProyectoId(e.target.value)}>
+            {proyectos.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-300"
+            onClick={exportarExcel}
+          >
+            <Download className="h-4 w-4" />
+            Descargar Excel
+          </button>
+        </div>
       </div>
 
       {proyecto ? (
@@ -280,21 +290,10 @@ export function GanttAdminView() {
       </GlassCard>
 
       <GlassCard className="p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold text-white">Descarga y visualizacion</h2>
-            <p className="mt-1 text-sm text-slate-500">Exporta el proyecto seleccionado a Excel con una hoja de detalle y otra hoja con la Gantt visual.</p>
-          </div>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-3 font-semibold text-white hover:bg-white/10"
-            onClick={exportarExcel}
-          >
-            <Download className="h-4 w-4" />
-            Descargar Excel
-          </button>
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-white">Carta Gantt</h2>
+          <p className="mt-1 text-sm text-slate-500">Exporta el proyecto seleccionado a Excel con una hoja de detalle y otra hoja con la Gantt visual.</p>
         </div>
-
         <GanttView tareas={tareasProyecto} />
       </GlassCard>
 
