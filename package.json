@@ -11,6 +11,7 @@
   "dependencies": {
     "@vitejs/plugin-react": "^4.2.1",
     "date-fns": "^3.6.0",
+    "exceljs": "^4.4.0",
     "firebase": "^12.14.0",
     "frappe-gantt": "^0.6.1",
     "lucide-react": "^0.468.0",
