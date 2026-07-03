@@ -1,9 +1,10 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns';
-import { Cloud, Link2, Lock, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { Cloud, Download, Link2, Lock, Plus, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { usePermisos } from '../../hooks/usePermisos';
 import { useAppStore } from '../../store/useAppStore';
 import { EstadoTarea, Tarea } from '../../types';
+import { downloadGanttWorkbook } from '../../utils/exportGanttWorkbook';
 import { GoogleSheetPlanPayload, GoogleSheetPlanRow, normalizeGoogleSheetSourceUrl, parseGoogleSheetCsv, parseGoogleSheetPlan } from '../../utils/googleSheetsPlan';
 import { GanttView } from './GanttView';
 import { GlassCard } from '../ui/GlassCard';
@@ -172,6 +173,16 @@ export function GanttAdminView() {
     });
   };
 
+  const exportarExcel = () => {
+    if (!proyecto) return;
+    downloadGanttWorkbook(proyecto, fasesProyecto, tareasProyecto);
+    setSyncState({
+      loading: false,
+      message: `Excel generado para ${proyecto.nombre} con hojas de detalle y Gantt visual.`,
+      error: false,
+    });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -268,7 +279,24 @@ export function GanttAdminView() {
         </div>
       </GlassCard>
 
-      <GanttView tareas={tareasProyecto} />
+      <GlassCard className="p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-white">Descarga y visualizacion</h2>
+            <p className="mt-1 text-sm text-slate-500">Exporta el proyecto seleccionado a Excel con una hoja de detalle y otra hoja con la Gantt visual.</p>
+          </div>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-3 font-semibold text-white hover:bg-white/10"
+            onClick={exportarExcel}
+          >
+            <Download className="h-4 w-4" />
+            Descargar Excel
+          </button>
+        </div>
+
+        <GanttView tareas={tareasProyecto} />
+      </GlassCard>
 
       <GlassCard className="p-5">
         <h2 className="mb-4 text-xl font-semibold text-white">Agregar tarea</h2>
