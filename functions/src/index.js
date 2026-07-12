@@ -76,10 +76,10 @@ async function sendEmail({ to, subject, html, text }) {
   }
 }
 
-async function requireAdminCaller(request) {
+async function requireCaller(request, options = {}) {
   const header = request.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (!token) throw new Error('Falta autenticacion para enviar accesos.');
+  if (!token) throw new Error('Falta autenticacion para enviar correos.');
 
   const decoded = await getAuth().verifyIdToken(token);
   const callerEmail = normalizeEmail(decoded.email);
@@ -94,12 +94,53 @@ async function requireAdminCaller(request) {
   const perfilAcceso = perfilesAcceso.find((item) => item.id === perfil?.perfil);
   const accesos = perfilAcceso?.accesos || {};
 
-  if (!accesos.puedeAdministrar && !accesos.puedeGestionarUsuarios) {
+  if (!perfil) {
+    throw new Error('Tu usuario no esta activo en Implementator.');
+  }
+
+  if (options.adminOnly && !accesos.puedeAdministrar && !accesos.puedeGestionarUsuarios) {
     throw new Error('Tu usuario no tiene permisos para enviar accesos.');
   }
 
-  return callerEmail;
+  return { callerEmail, perfil, perfilAcceso };
 }
+
+async function requireAdminCaller(request) {
+  return requireCaller(request, { adminOnly: true });
+}
+
+const buildNotificationHtml = ({ title, lead, taskName, projectName, actionUrl, ctaLabel, detailLines = [] }) => `
+  <div style="margin:0;padding:32px;background:#f3f6fb;font-family:Inter,Arial,sans-serif;color:#0f172a;">
+    <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #dbe5f0;border-radius:18px;overflow:hidden;">
+      <div style="padding:28px 32px;border-bottom:1px solid #e5edf5;background:#0f172a;color:#ffffff;">
+        <div style="font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:#7dd3fc;">Implementator</div>
+        <h1 style="margin:14px 0 0;font-size:28px;line-height:1.1;">${title}</h1>
+      </div>
+      <div style="padding:32px;">
+        <p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#334155;">${lead}</p>
+        <div style="margin:0 0 20px;padding:18px;border:1px solid #dbe5f0;border-radius:14px;background:#f8fafc;">
+          <p style="margin:0 0 8px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#64748b;">Proyecto</p>
+          <p style="margin:0 0 16px;font-size:18px;font-weight:700;color:#0f172a;">${projectName}</p>
+          <p style="margin:0 0 8px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#64748b;">Tarea</p>
+          <p style="margin:0;font-size:18px;font-weight:700;color:#0f172a;">${taskName}</p>
+        </div>
+        ${
+          detailLines.length
+            ? `<ul style="margin:0 0 24px;padding-left:18px;color:#334155;font-size:15px;line-height:1.7;">${detailLines
+                .map((item) => `<li style="margin-bottom:6px;">${item}</li>`)
+                .join('')}</ul>`
+            : ''
+        }
+        <a href="${actionUrl}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;">
+          ${ctaLabel}
+        </a>
+      </div>
+    </div>
+  </div>
+`;
+
+const buildNotificationText = ({ lead, taskName, projectName, detailLines = [], actionUrl }) =>
+  [lead, '', `Proyecto: ${projectName}`, `Tarea: ${taskName}`, ...detailLines, '', actionUrl].join('\n');
 
 export const sendPasswordReset = onRequest({ secrets: [RESEND_API_KEY] }, async (request, response) => {
   if (request.method === 'OPTIONS') {
@@ -200,6 +241,56 @@ export const sendAccessInvite = onRequest({ secrets: [RESEND_API_KEY] }, async (
         ? 'Usuario creado en Firebase y correo enviado desde Resend.'
         : 'Correo enviado desde Resend para definir una nueva contrasena.',
     });
+  } catch (error) {
+    sendJson(response, 500, { message: error instanceof Error ? error.message : 'No se pudo enviar el correo.' });
+  }
+});
+
+export const sendTaskNotification = onRequest({ secrets: [RESEND_API_KEY] }, async (request, response) => {
+  if (request.method === 'OPTIONS') {
+    response.set(corsHeaders);
+    response.status(204).send('');
+    return;
+  }
+
+  if (request.method !== 'POST') {
+    sendJson(response, 405, { message: 'Metodo no permitido.' });
+    return;
+  }
+
+  try {
+    await requireCaller(request);
+
+    const recipients = Array.isArray(request.body?.to) ? request.body.to : [request.body?.to];
+    const to = recipients.map((item) => normalizeEmail(String(item || ''))).filter(Boolean);
+    const subject = String(request.body?.subject || '').trim();
+    const title = String(request.body?.title || '').trim();
+    const lead = String(request.body?.lead || '').trim();
+    const taskName = String(request.body?.taskName || '').trim();
+    const projectName = String(request.body?.projectName || '').trim();
+    const actionUrl = String(request.body?.actionUrl || APP_PUBLIC_URL).trim() || APP_PUBLIC_URL;
+    const ctaLabel = String(request.body?.ctaLabel || 'Abrir Implementator').trim() || 'Abrir Implementator';
+    const detailLines = Array.isArray(request.body?.detailLines)
+      ? request.body.detailLines.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
+
+    if (!to.length || !subject || !title || !lead || !taskName || !projectName) {
+      sendJson(response, 400, { message: 'Faltan datos para enviar la notificacion.' });
+      return;
+    }
+
+    await Promise.all(
+      Array.from(new Set(to)).map((email) =>
+        sendEmail({
+          to: email,
+          subject,
+          html: buildNotificationHtml({ title, lead, taskName, projectName, actionUrl, ctaLabel, detailLines }),
+          text: buildNotificationText({ lead, taskName, projectName, detailLines, actionUrl }),
+        }),
+      ),
+    );
+
+    sendJson(response, 200, { message: 'Notificacion enviada correctamente.' });
   } catch (error) {
     sendJson(response, 500, { message: error instanceof Error ? error.message : 'No se pudo enviar el correo.' });
   }

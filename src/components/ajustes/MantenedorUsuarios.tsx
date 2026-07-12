@@ -30,7 +30,8 @@ export function MantenedorUsuarios() {
   });
   const perfilSeleccionado = perfilesAcceso.find((perfil) => perfil.id === form.perfil);
   const requiereProyectoCliente = perfilSeleccionado?.accesos.esCliente ?? form.perfil === 'cliente';
-  const requiereMultiplesProyectos = form.perfil === 'rex_plus';
+  const perfilSoportaMultiplesProyectos = (perfilId: string) => perfilId === 'rex_plus' || perfilId === 'tmf';
+  const requiereMultiplesProyectos = perfilSoportaMultiplesProyectos(form.perfil);
 
   const enviarAcceso = async (email: string) => {
     const emailNormalizado = email.trim().toLowerCase();
@@ -77,7 +78,7 @@ export function MantenedorUsuarios() {
   };
 
   const perfilEsCliente = (perfilId: string) => perfilesAcceso.find((perfil) => perfil.id === perfilId)?.accesos.esCliente ?? perfilId === 'cliente';
-  const perfilEsRexPlus = (perfilId: string) => perfilId === 'rex_plus';
+  const perfilTieneMultiproyecto = (perfilId: string) => perfilSoportaMultiplesProyectos(perfilId);
   const toggleProyecto = (current: string[], proyectoId: string) =>
     current.includes(proyectoId) ? current.filter((id) => id !== proyectoId) : [...current, proyectoId];
   const nombresProyectosAsignados = (proyectoIds?: string[]) =>
@@ -121,7 +122,7 @@ export function MantenedorUsuarios() {
         ) : null}
         {requiereMultiplesProyectos ? (
           <div className="rounded-lg border border-white/10 bg-white/[0.035] p-3 text-sm text-slate-300 lg:col-span-6">
-            <p className="mb-2 font-medium text-white">Proyectos visibles para REX+</p>
+            <p className="mb-2 font-medium text-white">Proyectos visibles para este perfil</p>
             <div className="flex flex-wrap gap-2">
               {proyectos.map((proyecto) => {
                 const active = form.proyectoIds.includes(proyecto.id);
@@ -182,7 +183,9 @@ export function MantenedorUsuarios() {
         {usuariosFiltrados.map((usuario) => {
           const perfil = perfilesAcceso.find((item) => item.id === usuario.perfil);
           const esCliente = perfilEsCliente(usuario.perfil);
-          const esRexPlus = perfilEsRexPlus(usuario.perfil);
+          const esRexPlus = usuario.perfil === 'rex_plus';
+          const esTMF = usuario.perfil === 'tmf';
+          const tieneMultiproyecto = perfilTieneMultiproyecto(usuario.perfil);
           const proyectosAsignados = nombresProyectosAsignados(usuario.proyectoIds);
           const proyectoCliente = proyectos.find((proyecto) => proyecto.id === usuario.proyectoClienteId);
           const email = (usuario.email ?? '').trim().toLowerCase();
@@ -192,7 +195,7 @@ export function MantenedorUsuarios() {
             <div key={usuario.id} className="grid gap-3 rounded-lg border border-white/10 bg-white/[0.035] p-4 lg:grid-cols-12">
               <input className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white lg:col-span-3" value={usuario.nombre} onChange={(event) => actualizarUsuario(usuario.id, { nombre: event.target.value, iniciales: inicialesDesdeNombre(event.target.value) })} />
               <input className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white lg:col-span-3" type="email" placeholder="Correo" value={usuario.email ?? ''} onChange={(event) => actualizarUsuario(usuario.id, { email: event.target.value.trim().toLowerCase() })} />
-              <select className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white lg:col-span-3" value={usuario.perfil} onChange={(event) => actualizarUsuario(usuario.id, { perfil: event.target.value, rol: perfilesAcceso.find((item) => item.id === event.target.value)?.nombre ?? usuario.rol, proyectoClienteId: perfilEsCliente(event.target.value) ? usuario.proyectoClienteId || proyectos[0]?.id : undefined, proyectoIds: perfilEsRexPlus(event.target.value) ? usuario.proyectoIds ?? [] : undefined })}>
+              <select className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white lg:col-span-3" value={usuario.perfil} onChange={(event) => actualizarUsuario(usuario.id, { perfil: event.target.value, rol: perfilesAcceso.find((item) => item.id === event.target.value)?.nombre ?? usuario.rol, proyectoClienteId: perfilEsCliente(event.target.value) ? usuario.proyectoClienteId || proyectos[0]?.id : undefined, proyectoIds: perfilTieneMultiproyecto(event.target.value) ? usuario.proyectoIds ?? [] : undefined })}>
                 {perfilesAcceso.map((item) => (
                   <option key={item.id} value={item.id}>{item.nombre}</option>
                 ))}
@@ -217,10 +220,10 @@ export function MantenedorUsuarios() {
                   ))}
                 </select>
               ) : null}
-              {esRexPlus ? (
+              {tieneMultiproyecto ? (
                 <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 lg:col-span-12">
                   <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium text-white">Proyectos asignados a REX+</p>
+                    <p className="text-sm font-medium text-white">Proyectos asignados a {esRexPlus ? 'REX+' : esTMF ? 'TMF' : 'este perfil'}</p>
                     <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2 py-1 text-[11px] font-medium text-emerald-100">
                       {proyectosAsignados.length} asignado(s)
                     </span>
@@ -237,7 +240,7 @@ export function MantenedorUsuarios() {
                       ))}
                     </div>
                   ) : (
-                    <p className="mb-3 text-xs text-amber-200">Este usuario REX+ aun no tiene proyectos visibles asignados.</p>
+                    <p className="mb-3 text-xs text-amber-200">Este usuario aun no tiene proyectos visibles asignados.</p>
                   )}
                   <div className="flex flex-wrap gap-2">
                     {proyectos.map((proyecto) => {
@@ -262,7 +265,7 @@ export function MantenedorUsuarios() {
               ) : null}
               <div className="flex flex-wrap items-center gap-2 text-xs lg:col-span-12">
                 <span className="text-slate-500">Perfil actual: {perfil?.nombre ?? usuario.perfil}</span>
-                {esRexPlus ? (
+                {tieneMultiproyecto ? (
                   <>
                     <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2 py-1 font-medium text-emerald-100">
                       {proyectosAsignados.length} proyecto(s) visibles

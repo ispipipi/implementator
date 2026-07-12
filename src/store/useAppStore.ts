@@ -18,7 +18,6 @@ import {
   semaforoCumplimientoProyecto,
   semaforoProyecto,
 } from '../utils/progressCalc';
-import { normalizarResponsable } from '../utils/assignee';
 import {
   canonicalizarResponsable,
   sanitizarAlertas,
@@ -29,6 +28,8 @@ import {
   sanitizarTarea,
   sanitizarUsuario,
 } from '../utils/dataIntegrity';
+import { responsableAsignadoAUsuario, normalizarResponsable } from '../utils/assignee';
+import { enviarNotificacionTarea } from '../services/taskNotifications';
 
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
 
@@ -43,6 +44,52 @@ const obtenerPersonasActivas = (state: Pick<AppState, 'perfiles' | 'ejecutivos'>
   ...state.perfiles.filter((perfil) => perfil.activo !== false),
   ...state.ejecutivos,
 ];
+
+const obtenerUsuarioActivoPorResponsable = (responsable: string, perfiles: AppState['perfiles']) =>
+  perfiles.find(
+    (perfil) =>
+      perfil.activo !== false &&
+      perfil.email?.trim() &&
+      responsableAsignadoAUsuario(responsable, perfil),
+  );
+
+const obtenerUsuarioActivoPorNombre = (nombre: string, perfiles: AppState['perfiles']) =>
+  perfiles.find(
+    (perfil) =>
+      perfil.activo !== false &&
+      perfil.email?.trim() &&
+      responsableAsignadoAUsuario(nombre, perfil),
+  );
+
+const notificarTareaPorCorreo = (payload: {
+  perfiles: AppState['perfiles'];
+  destinatarioNombre?: string;
+  taskName: string;
+  projectName: string;
+  subject: string;
+  title: string;
+  lead: string;
+  detailLines?: string[];
+}) => {
+  const destinatario = payload.destinatarioNombre
+    ? obtenerUsuarioActivoPorResponsable(payload.destinatarioNombre, payload.perfiles)
+    : null;
+
+  const email = destinatario?.email?.trim().toLowerCase();
+  if (!email) return;
+
+  void enviarNotificacionTarea({
+    to: email,
+    subject: payload.subject,
+    title: payload.title,
+    lead: payload.lead,
+    taskName: payload.taskName,
+    projectName: payload.projectName,
+    detailLines: payload.detailLines,
+  }).catch((error) => {
+    console.warn('No se pudo enviar la notificacion de tarea por correo', error);
+  });
+};
 
 const sanitizarSlicesCompartidos = (
   estado: Partial<
@@ -369,11 +416,14 @@ export const useAppStore = create<AppState>()(
       },
 
       actualizarTarea: (id, cambios, usuario) => {
-        const { tareas, perfiles, ejecutivos } = get();
+        const { tareas, perfiles, ejecutivos, proyectos } = get();
         const tareaActual = tareas.find((t) => t.id === id);
         if (!tareaActual) return;
         const personas = obtenerPersonasActivas({ perfiles, ejecutivos });
         const timestamp = new Date().toISOString();
+        const proyectoNombre = proyectos.find((proyecto) => proyecto.id === tareaActual.proyectoId)?.nombre ?? 'Proyecto';
+        const responsableCanonico =
+          typeof cambios.responsable === 'string' ? canonicalizarResponsable(cambios.responsable, personas) : undefined;
 
         const historialEntry = Object.entries(cambios).map(([campo, nuevo]) => ({
           fecha: timestamp,
@@ -387,12 +437,13 @@ export const useAppStore = create<AppState>()(
           tareas: tareas.map((t) =>
             t.id === id
               ? sanitizarTarea(
-                  {
-                    ...t,
-                    ...cambios,
-                    actualizadoEn: timestamp,
-                    historial: [...(t.historial || []), ...historialEntry].slice(-10),
-                  },
+                {
+                  ...t,
+                  ...cambios,
+                  responsable: responsableCanonico ?? t.responsable,
+                  actualizadoEn: timestamp,
+                  historial: [...(t.historial || []), ...historialEntry].slice(-10),
+                },
                   personas,
                 )
               : t,
@@ -400,6 +451,25 @@ export const useAppStore = create<AppState>()(
         });
         get().recalcularAlertas();
         guardarRemoto(get(), 'actualizar_tarea');
+        if (
+          responsableCanonico &&
+          normalizarResponsable(responsableCanonico) !== normalizarResponsable(tareaActual.responsable)
+        ) {
+          notificarTareaPorCorreo({
+            perfiles,
+            destinatarioNombre: responsableCanonico,
+            taskName: tareaActual.nombre,
+            projectName: proyectoNombre,
+            subject: `Tarea asignada: ${tareaActual.nombre}`,
+            title: 'Te asignaron una tarea',
+            lead: `${usuario} te asignó una tarea en ${proyectoNombre}.`,
+            detailLines: [
+              `Tarea: ${tareaActual.nombre}`,
+              `Responsable anterior: ${tareaActual.responsable}`,
+              `Nuevo responsable: ${responsableCanonico}`,
+            ],
+          });
+        }
       },
 
       actualizarFechasGantt: (tareaId, inicio, fin) => {
@@ -415,14 +485,17 @@ export const useAppStore = create<AppState>()(
       },
 
       crearTarea: (t) => {
-        const personas = [...get().perfiles.filter((perfil) => perfil.activo !== false), ...get().ejecutivos];
+        const { perfiles, ejecutivos, proyectos } = get();
+        const personas = [...perfiles.filter((perfil) => perfil.activo !== false), ...ejecutivos];
+        const responsableCanonico = canonicalizarResponsable(t.responsable, personas);
+        const proyectoNombre = proyectos.find((proyecto) => proyecto.id === t.proyectoId)?.nombre ?? 'Proyecto';
         set((s) => ({
           tareas: [
             ...s.tareas,
             sanitizarTarea(
               {
                 ...t,
-                responsable: canonicalizarResponsable(t.responsable, personas),
+                responsable: responsableCanonico,
                 id: makeId('tarea'),
                 actualizadoEn: new Date().toISOString(),
                 historial: [],
@@ -433,14 +506,29 @@ export const useAppStore = create<AppState>()(
         }));
         get().recalcularAlertas();
         guardarRemoto(get(), 'crear_tarea');
+        notificarTareaPorCorreo({
+          perfiles,
+          destinatarioNombre: responsableCanonico,
+          taskName: t.nombre,
+          projectName: proyectoNombre,
+          subject: `Nueva tarea asignada: ${t.nombre}`,
+          title: 'Te asignaron una nueva tarea',
+          lead: `Acabas de recibir una nueva tarea en ${proyectoNombre}.`,
+          detailLines: [
+            `Tarea: ${t.nombre}`,
+            `Responsable: ${responsableCanonico}`,
+            `Fecha plan: ${t.fechaInicioPlan} al ${t.fechaFinPlan}`,
+          ],
+        });
       },
 
       reportarImpedimentoTarea: ({ tareaOrigenId, responsableDestrabe, motivo, usuario }) => {
-        const { tareas, fases, perfiles, ejecutivos } = get();
+        const { tareas, fases, perfiles, ejecutivos, proyectos } = get();
         const tareaOrigen = tareas.find((tarea) => tarea.id === tareaOrigenId);
         if (!tareaOrigen) return;
         const personas = obtenerPersonasActivas({ perfiles, ejecutivos });
         const responsableCanonico = canonicalizarResponsable(responsableDestrabe, personas);
+        const proyectoNombre = proyectos.find((proyecto) => proyecto.id === tareaOrigen.proyectoId)?.nombre ?? 'Proyecto';
 
         const faseOrigen = fases.find((fase) => fase.id === tareaOrigen.faseId);
         const hoy = new Date();
@@ -531,15 +619,31 @@ export const useAppStore = create<AppState>()(
         }));
         get().recalcularAlertas();
         guardarRemoto(get(), 'reportar_impedimento_tarea');
+        notificarTareaPorCorreo({
+          perfiles,
+          destinatarioNombre: responsableCanonico,
+          taskName: nuevaTarea.nombre,
+          projectName: proyectoNombre,
+          subject: `Mensaje bloqueante: ${tareaOrigen.nombre}`,
+          title: 'Tienes un destrabe pendiente',
+          lead: `${usuario} reportó un impedimento y te asignó una tarea para destrabar el avance.`,
+          detailLines: [
+            `Proyecto: ${proyectoNombre}`,
+            `Tarea origen: ${tareaOrigen.nombre}`,
+            `Nueva tarea: ${nuevaTarea.nombre}`,
+            `Motivo: ${motivo}`,
+          ],
+        });
       },
 
       solicitarReasignacionTarea: ({ tareaId, nuevoResponsable, motivo, usuario }) => {
-        const { tareas, perfiles, ejecutivos } = get();
+        const { tareas, perfiles, ejecutivos, proyectos } = get();
         const tareaActual = tareas.find((tarea) => tarea.id === tareaId);
         if (!tareaActual) return;
 
         const personas = obtenerPersonasActivas({ perfiles, ejecutivos });
         const nuevoResponsableCanonico = canonicalizarResponsable(nuevoResponsable, personas);
+        const proyectoNombre = proyectos.find((proyecto) => proyecto.id === tareaActual.proyectoId)?.nombre ?? 'Proyecto';
         const motivoLimpio = motivo.trim();
         if (
           !nuevoResponsableCanonico ||
@@ -591,15 +695,31 @@ export const useAppStore = create<AppState>()(
         });
         get().recalcularAlertas();
         guardarRemoto(get(), 'solicitar_reasignacion_tarea');
+        notificarTareaPorCorreo({
+          perfiles,
+          destinatarioNombre: nuevoResponsableCanonico,
+          taskName: tareaActual.nombre,
+          projectName: proyectoNombre,
+          subject: `Reasignación pendiente: ${tareaActual.nombre}`,
+          title: 'Te solicitaron tomar una tarea',
+          lead: `${usuario} quiere reasignarte una tarea y espera tu respuesta en Implementator.`,
+          detailLines: [
+            `Proyecto: ${proyectoNombre}`,
+            `Tarea: ${tareaActual.nombre}`,
+            `Solicitante: ${usuario}`,
+            `Motivo: ${motivoLimpio}`,
+          ],
+        });
       },
 
       resolverReasignacionTarea: ({ tareaId, accion, usuario, motivo }) => {
-        const { tareas, perfiles, ejecutivos } = get();
+        const { tareas, perfiles, ejecutivos, proyectos } = get();
         const tareaActual = tareas.find((tarea) => tarea.id === tareaId);
         if (!tareaActual?.reasignacionPendiente) return;
 
         const personas = obtenerPersonasActivas({ perfiles, ejecutivos });
         const solicitud = tareaActual.reasignacionPendiente;
+        const proyectoNombre = proyectos.find((proyecto) => proyecto.id === tareaActual.proyectoId)?.nombre ?? 'Proyecto';
         const timestamp = new Date().toISOString();
 
         if (accion === 'rechazar' && !motivo?.trim()) return;
@@ -683,6 +803,27 @@ export const useAppStore = create<AppState>()(
         });
         get().recalcularAlertas();
         guardarRemoto(get(), accion === 'aceptar' ? 'aceptar_reasignacion_tarea' : 'rechazar_reasignacion_tarea');
+        if (accion === 'rechazar') {
+          const solicitante = obtenerUsuarioActivoPorNombre(solicitud.solicitante, perfiles);
+          const email = solicitante?.email?.trim().toLowerCase();
+          if (email) {
+            void enviarNotificacionTarea({
+              to: email,
+              subject: `Reasignación rechazada: ${tareaActual.nombre}`,
+              title: 'Rechazaron tu solicitud de reasignación',
+              lead: `${usuario} rechazó la reasignación solicitada para la tarea ${tareaActual.nombre}.`,
+              taskName: tareaActual.nombre,
+              projectName: proyectoNombre,
+              detailLines: [
+                `Proyecto: ${proyectoNombre}`,
+                `Solicitaste reasignar a: ${solicitud.destinatario}`,
+                `Respuesta: ${motivo?.trim() ?? 'Sin motivo'}`,
+              ],
+            }).catch((error) => {
+              console.warn('No se pudo enviar el correo de rechazo de reasignacion', error);
+            });
+          }
+        }
       },
 
       eliminarTarea: (id) => {
