@@ -74,14 +74,29 @@ export function ProyectoDetail() {
                 Info cliente
               </button>
             </div>
-            <p className="mt-2 max-w-3xl text-slate-400">{proyecto.observaciones}</p>
-            <div className="mt-5 flex flex-wrap gap-4 text-sm text-slate-300">
-              <span className="inline-flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-slate-500" />
-                {proyecto.fechaInicio} a {proyecto.fechaGoLive}
-              </span>
-              <span>Razon social: {info.razonSocial}</span>
-              <span>RUT: {proyecto.rut}</span>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Sistema de origen</p>
+                <p className="mt-1 text-sm font-semibold text-white">{proyecto.sistemaOrigen}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Sistema de destino</p>
+                <p className="mt-1 text-sm font-semibold text-white">REX+</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Fecha de inicio</p>
+                <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-white">
+                  <CalendarDays className="h-4 w-4 text-slate-500" />
+                  {proyecto.fechaInicio}
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/[0.035] px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Fecha de término</p>
+                <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-white">
+                  <CalendarDays className="h-4 w-4 text-slate-500" />
+                  {proyecto.fechaGoLive}
+                </p>
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 justify-self-start text-center lg:justify-self-end">

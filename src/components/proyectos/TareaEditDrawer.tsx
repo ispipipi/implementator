@@ -49,6 +49,18 @@ const estadoConfig: Record<EstadoTarea, { label: string; hint: string; icon: typ
   },
 };
 
+const campoHistorialLabel: Record<string, string> = {
+  estado: 'Estado',
+  fechaInicioPlan: 'Inicio plan',
+  fechaFinPlan: 'Fin plan',
+  fechaInicioReal: 'Inicio real',
+  fechaFinReal: 'Fin real',
+  responsable: 'Responsable',
+  comentarios: 'Comentarios',
+  observacion: 'Observación',
+  reasignacionPendiente: 'Reasignación',
+};
+
 const tieneAcentos = (value: string) => value.normalize('NFD') !== value;
 
 const agregarPersonaUnica = (map: Map<string, string>, nombre: string) => {
@@ -59,6 +71,37 @@ const agregarPersonaUnica = (map: Map<string, string>, nombre: string) => {
   if (!actual || (!tieneAcentos(actual) && tieneAcentos(clean))) {
     map.set(key, clean);
   }
+};
+
+const formatearEstado = (value: string) => {
+  const labels: Record<string, string> = {
+    pendiente: 'Pendiente',
+    en_proceso: 'En proceso',
+    completada: 'Completada',
+    bloqueada: 'Bloqueada',
+    cancelada: 'Cancelada',
+  };
+  return labels[value] ?? value;
+};
+
+const formatearValorHistorial = (campo: string, valor: string) => {
+  if (!valor || valor === '[object Object]') {
+    if (campo === 'comentarios') return 'Comentario actualizado';
+    if (campo === 'reasignacionPendiente') return 'Solicitud actualizada';
+    return '-';
+  }
+
+  if (campo === 'estado') return formatearEstado(valor);
+
+  if ((campo === 'fechaInicioPlan' || campo === 'fechaFinPlan' || campo === 'fechaInicioReal' || campo === 'fechaFinReal') && /^\d{4}-\d{2}-\d{2}/.test(valor)) {
+    return valor;
+  }
+
+  if (valor.length > 120) {
+    return `${valor.slice(0, 117)}...`;
+  }
+
+  return valor;
 };
 
 export function TareaEditDrawer({ tarea, onClose }: Props) {
@@ -281,9 +324,9 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
 
   return (
     <Drawer open={!!tareaActual} title="Ficha de tarea" onClose={onClose}>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
-        <div className="space-y-4">
-          <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.95fr)]">
+        <div className="min-w-0 space-y-4">
+          <section className="min-w-0 rounded-xl border border-white/10 bg-white/[0.035] p-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               {tareaActual ? <StatusBadge estado={form.estado} ping={form.estado === 'bloqueada'} /> : null}
               {vencida ? (
@@ -301,7 +344,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
               ) : null}
             </div>
             <h3 className="text-xl font-semibold leading-tight text-white">{tareaActual?.nombre}</h3>
-            {tareaActual?.descripcion ? <p className="mt-1 line-clamp-3 text-sm text-slate-400">{tareaActual.descripcion}</p> : null}
+            {tareaActual?.descripcion ? <p className="mt-1 break-words text-sm text-slate-400">{tareaActual.descripcion}</p> : null}
             <p className="mt-2 truncate text-xs text-slate-500">{proyecto?.nombre ?? 'Proyecto'}</p>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -336,7 +379,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
             </div>
           </section>
 
-          <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+          <section className="min-w-0 rounded-xl border border-white/10 bg-white/[0.035] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <CheckCircle2 className="h-4 w-4 text-emerald-300" />
@@ -430,7 +473,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
                   Si esta tarea depende de otra persona para seguir avanzando, deja el motivo, crea su tarea de destrabe y le llegará una alerta.
                 </p>
 
-                <div className="grid gap-3 lg:grid-cols-[minmax(220px,0.9fr)_minmax(0,1.35fr)_220px]">
+                <div className="grid gap-3 xl:grid-cols-[minmax(220px,0.9fr)_minmax(0,1.35fr)_220px]">
                   <label className="grid gap-1 text-sm text-slate-300">
                     Quién debe destrabar
                     <select
@@ -539,7 +582,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
                     </label>
                   </div>
                 ) : puedeSolicitarReasignacion ? (
-                  <div className="grid gap-3 lg:grid-cols-[minmax(220px,0.9fr)_minmax(0,1.35fr)_220px]">
+                  <div className="grid gap-3 xl:grid-cols-[minmax(220px,0.9fr)_minmax(0,1.35fr)_220px]">
                     <label className="grid gap-1 text-sm text-slate-300">
                       Nuevo responsable
                       <select
@@ -592,7 +635,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
             ) : null}
           </section>
 
-          <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+          <section className="min-w-0 rounded-xl border border-white/10 bg-white/[0.035] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-white">Datos de gestion</h3>
               <span className="text-xs text-slate-500">Edicion puntual</span>
@@ -617,8 +660,8 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
           </section>
         </div>
 
-        <div className="space-y-4">
-          <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+        <div className="min-w-0 space-y-4">
+          <section className="min-w-0 rounded-xl border border-white/10 bg-white/[0.035] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <span className="inline-flex items-center gap-2 font-semibold text-white">
                 <MessageSquare className="h-4 w-4 text-emerald-300" />
@@ -630,14 +673,14 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
               </span>
             </div>
 
-            <div className="mb-3 max-h-52 space-y-2 overflow-y-auto pr-1">
+            <div className="mb-3 max-h-64 space-y-2 overflow-y-auto pr-1">
               {tareaActual?.observacion ? (
                 <div className="rounded-lg border border-white/10 bg-white/[0.035] p-2">
                   <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs">
                     <span className="font-medium text-slate-300">Nota anterior</span>
                     <span className="text-slate-500">Migrada desde observacion</span>
                   </div>
-                  <p className="whitespace-pre-wrap text-sm text-slate-300">{tareaActual.observacion}</p>
+                  <p className="whitespace-pre-wrap break-words text-sm text-slate-300">{tareaActual.observacion}</p>
                 </div>
               ) : null}
 
@@ -648,7 +691,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
                       <span className="font-medium text-emerald-100">{comentario.usuario}</span>
                       <span className="text-slate-500">{formatFecha(comentario.fecha)}</span>
                     </div>
-                    <p className="whitespace-pre-wrap text-sm text-slate-200">{comentario.texto}</p>
+                    <p className="whitespace-pre-wrap break-words text-sm text-slate-200">{comentario.texto}</p>
                   </div>
                 ))
               ) : !tareaActual?.observacion ? (
@@ -663,19 +706,25 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
           </section>
 
           {tareaActual?.historial?.length ? (
-            <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+            <section className="min-w-0 rounded-xl border border-white/10 bg-white/[0.035] p-4">
               <h3 className="mb-2 text-sm font-semibold text-white">Últimos cambios</h3>
               <div className="grid gap-2 text-xs text-slate-400">
                 {tareaActual.historial.slice(-4).map((item, index) => (
-                  <p key={`${item.fecha}-${index}`} className="rounded-lg border border-white/8 bg-black/10 px-3 py-2">
-                    <span className="font-medium text-slate-300">{item.campo}</span>: {item.valorAnterior || '-'} {'>'} {item.valorNuevo || '-'} · {item.usuario}
-                  </p>
+                  <div key={`${item.fecha}-${index}`} className="rounded-lg border border-white/8 bg-black/10 px-3 py-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-medium text-slate-300">{campoHistorialLabel[item.campo] ?? item.campo}</span>
+                      <span className="text-slate-500">{item.usuario}</span>
+                    </div>
+                    <p className="mt-1 break-words text-slate-400">
+                      {formatearValorHistorial(item.campo, item.valorAnterior)} {'>'} {formatearValorHistorial(item.campo, item.valorNuevo)}
+                    </p>
+                  </div>
                 ))}
               </div>
             </section>
           ) : null}
 
-          <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+          <section className="min-w-0 rounded-xl border border-white/10 bg-white/[0.035] p-4">
             {esComercial ? (
               <div className="text-center text-sm font-medium text-slate-400">
                 Perfil solo lectura: no puede modificar estado, responsable ni comentarios.

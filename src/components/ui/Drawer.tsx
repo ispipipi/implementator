@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 type Props = {
   open: boolean;
@@ -11,7 +12,7 @@ type Props = {
 export function Drawer({ open, title, children, onClose }: Props) {
   if (!open) return null;
 
-  return (
+  const content = (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm" role="dialog" aria-modal="true">
       <button className="absolute inset-0 cursor-default" onClick={onClose} aria-label="Cerrar panel" />
       <aside className="relative h-[100dvh] w-full overflow-y-auto border-l border-white/10 bg-[#11141d] p-4 pb-8 shadow-2xl animate-fade-in sm:max-w-2xl sm:p-6 lg:max-w-4xl xl:max-w-5xl">
@@ -25,4 +26,10 @@ export function Drawer({ open, title, children, onClose }: Props) {
       </aside>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return content;
+  }
+
+  return createPortal(content, document.body);
 }
