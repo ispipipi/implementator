@@ -11,6 +11,7 @@ type Props = {
 };
 
 type AccesoForm = Omit<AccesoCompania, 'id' | 'actualizadoPor' | 'actualizadoEn'> & { id?: string };
+type ChecklistFiltro = 'todos' | 'pendientes' | 'completados' | 'manuales' | 'automaticos';
 
 const tiposDocumento: TipoDocumentoExpediente[] = ['Contrato', 'Mandato', 'Certificado', 'Acta', 'Carga inicial', 'Legal', 'Otro'];
 const portales: PortalAcceso[] = ['Previred', 'MiDT', 'Caja compensacion', 'AFC', 'Mutual', 'Portal licencias', 'Otro'];
@@ -48,6 +49,7 @@ export function ProyectoExpediente({ proyectoId }: Props) {
     responsable: '',
     notas: '',
   });
+  const [checklistFiltro, setChecklistFiltro] = useState<ChecklistFiltro>('todos');
 
   const documentosOrdenados = useMemo(
     () => [...expediente.documentos].sort((a, b) => b.creadoEn.localeCompare(a.creadoEn)),
@@ -62,6 +64,17 @@ export function ProyectoExpediente({ proyectoId }: Props) {
   const checklistCompletado = checklist.filter((item) => item.completo).length;
   const checklistPendiente = checklist.length - checklistCompletado;
   const progresoChecklist = checklist.length ? Math.round((checklistCompletado / checklist.length) * 100) : 0;
+  const checklistFiltrado = useMemo(
+    () =>
+      checklist.filter((item) => {
+        if (checklistFiltro === 'pendientes') return !item.completo;
+        if (checklistFiltro === 'completados') return item.completo;
+        if (checklistFiltro === 'manuales') return item.manual;
+        if (checklistFiltro === 'automaticos') return item.auto;
+        return true;
+      }),
+    [checklist, checklistFiltro],
+  );
 
   const submitDocumento = (event: FormEvent) => {
     event.preventDefault();
@@ -139,8 +152,37 @@ export function ProyectoExpediente({ proyectoId }: Props) {
           </div>
         </div>
 
+        <div className="mt-5 flex flex-wrap gap-2">
+          {[
+            { id: 'todos' as const, label: 'Todos', count: checklist.length },
+            { id: 'pendientes' as const, label: 'Pendientes', count: checklistPendiente },
+            { id: 'completados' as const, label: 'Completados', count: checklistCompletado },
+            { id: 'manuales' as const, label: 'Manuales', count: checklist.filter((item) => item.manual).length },
+            { id: 'automaticos' as const, label: 'Automáticos', count: checklist.filter((item) => item.auto).length },
+          ].map((filtro) => {
+            const activo = checklistFiltro === filtro.id;
+            return (
+              <button
+                key={filtro.id}
+                type="button"
+                onClick={() => setChecklistFiltro(filtro.id)}
+                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                  activo
+                    ? 'border-emerald-300/35 bg-emerald-400/12 text-emerald-100'
+                    : 'border-white/10 bg-white/[0.035] text-slate-300 hover:bg-white/8'
+                }`}
+              >
+                <span>{filtro.label}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${activo ? 'bg-emerald-400/16 text-emerald-50' : 'bg-white/8 text-slate-400'}`}>
+                  {filtro.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         <div className="mt-5 grid gap-3 xl:grid-cols-2">
-          {checklist.map((item) => {
+          {checklistFiltrado.map((item) => {
             const statusTone = item.completo
               ? 'border-emerald-300/20 bg-emerald-400/[0.06]'
               : 'border-white/10 bg-white/[0.03]';
@@ -199,6 +241,12 @@ export function ProyectoExpediente({ proyectoId }: Props) {
               </div>
             );
           })}
+
+          {checklistFiltrado.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-5 text-sm text-slate-400 xl:col-span-2">
+              No hay elementos para este filtro.
+            </div>
+          ) : null}
         </div>
 
         {!esEjecutivo ? (
@@ -209,69 +257,69 @@ export function ProyectoExpediente({ proyectoId }: Props) {
       </GlassCard>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-      <section className="space-y-4">
-        <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">Expediente digital</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">Documentos importantes</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Guarda enlaces a documentos de Drive, contratos, mandatos, certificados y archivos clave del proyecto.
-          </p>
-        </div>
+        <section className="space-y-4">
+          <div>
+            <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">Expediente digital</p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">Documentos importantes</h2>
+            <p className="mt-2 text-sm text-slate-400">
+              Guarda enlaces a documentos de Drive, contratos, mandatos, certificados y archivos clave del proyecto.
+            </p>
+          </div>
 
-        {puedeAdministrar ? (
-          <GlassCard className="p-4">
-            <form className="grid gap-3 md:grid-cols-6" onSubmit={submitDocumento}>
-              <input
-                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white md:col-span-2"
-                placeholder="Nombre del documento"
-                value={documentoForm.nombre}
-                onChange={(event) => setDocumentoForm((current) => ({ ...current, nombre: event.target.value }))}
-              />
-              <select
-                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
-                value={documentoForm.tipo}
-                onChange={(event) => setDocumentoForm((current) => ({ ...current, tipo: event.target.value as TipoDocumentoExpediente }))}
-              >
-                {tiposDocumento.map((tipo) => (
-                  <option key={tipo} value={tipo}>{tipo}</option>
-                ))}
-              </select>
-              <input
-                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white md:col-span-2"
-                placeholder="URL del documento"
-                type="url"
-                value={documentoForm.url}
-                onChange={(event) => setDocumentoForm((current) => ({ ...current, url: event.target.value }))}
-              />
-              <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">
-                <Plus className="h-4 w-4" />
-                Agregar
-              </button>
-              <textarea
-                className="min-h-20 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white md:col-span-6"
-                placeholder="Descripcion breve"
-                value={documentoForm.descripcion}
-                onChange={(event) => setDocumentoForm((current) => ({ ...current, descripcion: event.target.value }))}
-              />
-            </form>
-          </GlassCard>
-        ) : null}
+          {puedeAdministrar ? (
+            <GlassCard className="p-4">
+              <form className="grid gap-3 md:grid-cols-6" onSubmit={submitDocumento}>
+                <input
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white md:col-span-2"
+                  placeholder="Nombre del documento"
+                  value={documentoForm.nombre}
+                  onChange={(event) => setDocumentoForm((current) => ({ ...current, nombre: event.target.value }))}
+                />
+                <select
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                  value={documentoForm.tipo}
+                  onChange={(event) => setDocumentoForm((current) => ({ ...current, tipo: event.target.value as TipoDocumentoExpediente }))}
+                >
+                  {tiposDocumento.map((tipo) => (
+                    <option key={tipo} value={tipo}>{tipo}</option>
+                  ))}
+                </select>
+                <input
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white md:col-span-2"
+                  placeholder="URL del documento"
+                  type="url"
+                  value={documentoForm.url}
+                  onChange={(event) => setDocumentoForm((current) => ({ ...current, url: event.target.value }))}
+                />
+                <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-300">
+                  <Plus className="h-4 w-4" />
+                  Agregar
+                </button>
+                <textarea
+                  className="min-h-20 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white md:col-span-6"
+                  placeholder="Descripcion breve"
+                  value={documentoForm.descripcion}
+                  onChange={(event) => setDocumentoForm((current) => ({ ...current, descripcion: event.target.value }))}
+                />
+              </form>
+            </GlassCard>
+          ) : null}
 
-        <div className="grid gap-3">
-          {documentosOrdenados.length ? (
-            documentosOrdenados.map((documento) => (
-              <DocumentoCard
-                key={documento.id}
-                documento={documento}
-                puedeAdministrar={puedeAdministrar}
-                onDelete={() => eliminarDocumentoExpediente(proyectoId, documento.id)}
-              />
-            ))
-          ) : (
-            <GlassCard className="p-5 text-sm text-slate-400">Aun no hay documentos registrados en el expediente.</GlassCard>
-          )}
-        </div>
-      </section>
+          <div className="grid gap-3">
+            {documentosOrdenados.length ? (
+              documentosOrdenados.map((documento) => (
+                <DocumentoCard
+                  key={documento.id}
+                  documento={documento}
+                  puedeAdministrar={puedeAdministrar}
+                  onDelete={() => eliminarDocumentoExpediente(proyectoId, documento.id)}
+                />
+              ))
+            ) : (
+              <GlassCard className="p-5 text-sm text-slate-400">Aun no hay documentos registrados en el expediente.</GlassCard>
+            )}
+          </div>
+        </section>
 
       <section className="space-y-4">
         <div>
