@@ -1,8 +1,9 @@
-import { ExternalLink, FileText, KeyRound, Plus, ShieldAlert, Trash2 } from 'lucide-react';
+import { CheckCircle2, CircleDashed, ExternalLink, FileText, KeyRound, PencilLine, Plus, ShieldAlert, Sparkles, Trash2 } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { usePermisos } from '../../hooks/usePermisos';
 import { useAppStore } from '../../store/useAppStore';
 import { AccesoCompania, DocumentoExpediente, PortalAcceso, TipoDocumentoExpediente } from '../../types';
+import { calcularChecklistExpediente } from '../../utils/expedienteChecklist';
 import { GlassCard } from '../ui/GlassCard';
 
 type Props = {
@@ -23,13 +24,16 @@ const formatoFecha = (fecha: string) =>
 export function ProyectoExpediente({ proyectoId }: Props) {
   const {
     expedientes,
+    proyectos,
     agregarDocumentoExpediente,
     eliminarDocumentoExpediente,
     guardarAccesoExpediente,
     eliminarAccesoExpediente,
+    actualizarChecklistExpediente,
   } = useAppStore();
-  const { puedeAdministrar } = usePermisos();
+  const { puedeAdministrar, esEjecutivo } = usePermisos();
   const expediente = expedientes[proyectoId] ?? { documentos: [], accesos: [] };
+  const proyecto = proyectos.find((item) => item.id === proyectoId) ?? null;
   const [documentoForm, setDocumentoForm] = useState({
     nombre: '',
     tipo: 'Contrato' as TipoDocumentoExpediente,
@@ -54,6 +58,10 @@ export function ProyectoExpediente({ proyectoId }: Props) {
     () => [...expediente.accesos].sort((a, b) => a.portal.localeCompare(b.portal)),
     [expediente.accesos],
   );
+  const checklist = useMemo(() => calcularChecklistExpediente(proyecto, expediente), [expediente, proyecto]);
+  const checklistCompletado = checklist.filter((item) => item.completo).length;
+  const checklistPendiente = checklist.length - checklistCompletado;
+  const progresoChecklist = checklist.length ? Math.round((checklistCompletado / checklist.length) * 100) : 0;
 
   const submitDocumento = (event: FormEvent) => {
     event.preventDefault();
@@ -101,7 +109,105 @@ export function ProyectoExpediente({ proyectoId }: Props) {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+    <div className="space-y-6">
+      <GlassCard className="p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">Checklist inicial</p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">Información base del proyecto</h2>
+            <p className="mt-2 text-sm text-slate-400">
+              Este checklist se completa automáticamente al detectar documentos y accesos en el expediente. Los ejecutivos artBPO también pueden marcar elementos manualmente cuando ya fueron validados por otra vía.
+            </p>
+          </div>
+
+          <div className="grid min-w-[220px] gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-400">Avance checklist</span>
+              <span className="font-semibold text-white">{progresoChecklist}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-emerald-400 transition-all" style={{ width: `${progresoChecklist}%` }} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2 py-1 font-medium text-emerald-100">
+                {checklistCompletado} completo(s)
+              </span>
+              <span className="rounded-full border border-amber-300/20 bg-amber-400/10 px-2 py-1 font-medium text-amber-100">
+                {checklistPendiente} pendiente(s)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 xl:grid-cols-2">
+          {checklist.map((item) => {
+            const statusTone = item.completo
+              ? 'border-emerald-300/20 bg-emerald-400/[0.06]'
+              : 'border-white/10 bg-white/[0.03]';
+
+            return (
+              <div key={item.id} className={`rounded-xl border p-4 transition ${statusTone}`}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {item.completo ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/12 px-2.5 py-1 text-xs font-semibold text-emerald-100">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Completo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 text-xs font-semibold text-slate-300">
+                          <CircleDashed className="h-3.5 w-3.5" />
+                          Pendiente
+                        </span>
+                      )}
+
+                      {item.auto ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-400/12 px-2.5 py-1 text-xs font-medium text-sky-100">
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Automático
+                        </span>
+                      ) : null}
+
+                      {item.manual ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-400/12 px-2.5 py-1 text-xs font-medium text-violet-100">
+                          <PencilLine className="h-3.5 w-3.5" />
+                          Manual
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <p className="mt-3 text-sm font-medium text-white">{item.label}</p>
+                  </div>
+
+                  {esEjecutivo ? (
+                    <button
+                      type="button"
+                      onClick={() => actualizarChecklistExpediente(proyectoId, item.id, !item.manual)}
+                      className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                        item.manual
+                          ? 'border-violet-300/25 bg-violet-400/12 text-violet-100 hover:bg-violet-400/18'
+                          : 'border-white/10 bg-white/[0.035] text-slate-300 hover:bg-white/8'
+                      }`}
+                    >
+                      <PencilLine className="h-4 w-4" />
+                      {item.manual ? 'Quitar manual' : 'Marcar manual'}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {!esEjecutivo ? (
+          <p className="mt-4 text-xs text-slate-500">
+            La marcación manual del checklist está disponible solo para ejecutivos de artBPO.
+          </p>
+        ) : null}
+      </GlassCard>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
       <section className="space-y-4">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">Expediente digital</p>
@@ -252,8 +358,9 @@ export function ProyectoExpediente({ proyectoId }: Props) {
               <GlassCard className="p-5 text-sm text-slate-400">Aun no hay accesos registrados.</GlassCard>
             )}
           </div>
-        ) : null}
+          ) : null}
       </section>
+      </div>
     </div>
   );
 }

@@ -167,6 +167,9 @@ export const sanitizarExpedientes = (expedientes: Record<string, ExpedienteProye
       {
         documentos: expediente.documentos ?? [],
         accesos: expediente.accesos ?? [],
+        checklistManual: Object.fromEntries(
+          Object.entries(expediente.checklistManual ?? {}).filter(([, value]) => typeof value === 'boolean'),
+        ),
       },
     ]),
   );

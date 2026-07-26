@@ -196,6 +196,7 @@ export interface AccesoCompania {
 export interface ExpedienteProyecto {
   documentos: DocumentoExpediente[];
   accesos: AccesoCompania[];
+  checklistManual?: Record<string, boolean>;
 }
 
 export type Vista = 'dashboard' | 'proyectos' | 'proyecto' | 'fase' | 'mis_tareas' | 'info_cliente' | 'gantt_admin' | 'ajustes';
@@ -274,5 +275,6 @@ export interface AppState {
   eliminarDocumentoExpediente: (proyectoId: string, documentoId: string) => void;
   guardarAccesoExpediente: (proyectoId: string, acceso: Omit<AccesoCompania, 'id' | 'actualizadoEn' | 'actualizadoPor'> & { id?: string }) => void;
   eliminarAccesoExpediente: (proyectoId: string, accesoId: string) => void;
+  actualizarChecklistExpediente: (proyectoId: string, itemId: string, checked: boolean) => void;
   recalcularAlertas: () => void;
 }

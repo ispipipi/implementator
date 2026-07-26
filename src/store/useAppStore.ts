@@ -39,7 +39,7 @@ const guardarRemoto = (state: AppState, motivo: string) => {
   });
 };
 
-const expedienteVacio = (): ExpedienteProyecto => ({ documentos: [], accesos: [] });
+const expedienteVacio = (): ExpedienteProyecto => ({ documentos: [], accesos: [], checklistManual: {} });
 const obtenerPersonasActivas = (state: Pick<AppState, 'perfiles' | 'ejecutivos'>) => [
   ...state.perfiles.filter((perfil) => perfil.activo !== false),
   ...state.ejecutivos,
@@ -963,6 +963,25 @@ export const useAppStore = create<AppState>()(
           };
         });
         guardarRemoto(get(), 'eliminar_acceso_expediente');
+      },
+
+      actualizarChecklistExpediente: (proyectoId, itemId, checked) => {
+        set((s) => {
+          const expediente = s.expedientes[proyectoId] ?? expedienteVacio();
+          return {
+            expedientes: {
+              ...s.expedientes,
+              [proyectoId]: {
+                ...expediente,
+                checklistManual: {
+                  ...(expediente.checklistManual ?? {}),
+                  [itemId]: checked,
+                },
+              },
+            },
+          };
+        });
+        guardarRemoto(get(), 'actualizar_checklist_expediente');
       },
 
       recalcularAlertas: () => {
