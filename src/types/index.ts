@@ -193,10 +193,16 @@ export interface AccesoCompania {
   actualizadoEn: string;
 }
 
+export interface ChecklistManualExpedienteItem {
+  checked: boolean;
+  updatedBy?: string;
+  updatedAt?: string;
+}
+
 export interface ExpedienteProyecto {
   documentos: DocumentoExpediente[];
   accesos: AccesoCompania[];
-  checklistManual?: Record<string, boolean>;
+  checklistManual?: Record<string, ChecklistManualExpedienteItem>;
 }
 
 export type Vista = 'dashboard' | 'proyectos' | 'proyecto' | 'fase' | 'mis_tareas' | 'info_cliente' | 'gantt_admin' | 'ajustes';

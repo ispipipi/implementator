@@ -178,6 +178,7 @@ export function ProyectoExpediente({ proyectoId }: Props) {
                     </div>
 
                     <p className="mt-3 text-sm font-medium text-white">{item.label}</p>
+                    {item.fuente ? <p className="mt-1 text-xs text-slate-400">{item.fuente}</p> : null}
                   </div>
 
                   {esEjecutivo ? (

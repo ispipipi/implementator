@@ -167,9 +167,20 @@ export const sanitizarExpedientes = (expedientes: Record<string, ExpedienteProye
       {
         documentos: expediente.documentos ?? [],
         accesos: expediente.accesos ?? [],
-        checklistManual: Object.fromEntries(
-          Object.entries(expediente.checklistManual ?? {}).filter(([, value]) => typeof value === 'boolean'),
-        ),
+        checklistManual: Object.entries(expediente.checklistManual ?? {}).reduce<NonNullable<ExpedienteProyecto['checklistManual']>>((acc, [key, value]) => {
+          if (typeof value === 'boolean') {
+            acc[key] = { checked: value };
+            return acc;
+          }
+          if (value && typeof value === 'object' && typeof value.checked === 'boolean') {
+            acc[key] = {
+              checked: value.checked,
+              updatedBy: typeof value.updatedBy === 'string' ? value.updatedBy : undefined,
+              updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : undefined,
+            };
+          }
+          return acc;
+        }, {}),
       },
     ]),
   );

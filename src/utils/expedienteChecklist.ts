@@ -10,6 +10,7 @@ export type ChecklistExpedienteEstado = ChecklistExpedienteItem & {
   auto: boolean;
   manual: boolean;
   completo: boolean;
+  fuente?: string;
 };
 
 export const checklistExpedienteItems: ChecklistExpedienteItem[] = [
@@ -53,17 +54,6 @@ export const calcularChecklistExpediente = (
   const documentos = expediente?.documentos ?? [];
   const accesos = expediente?.accesos ?? [];
   const manual = expediente?.checklistManual ?? {};
-
-  const blobDocumentos = normalizar(
-    documentos
-      .map((documento) => [documento.nombre, documento.descripcion, documento.tipo].filter(Boolean).join(' '))
-      .join(' '),
-  );
-  const blobAccesos = normalizar(
-    accesos
-      .map((acceso) => [acceso.portal, acceso.url, acceso.usuario, acceso.referenciaClave, acceso.responsable, acceso.notas].filter(Boolean).join(' '))
-      .join(' '),
-  );
   const blobProyecto = normalizar(
     proyecto
       ? [
@@ -81,20 +71,61 @@ export const calcularChecklistExpediente = (
   );
 
   return checklistExpedienteItems.map((item) => {
-    const autoPorFicha = item.id === 'ficha_empresa' && proyectoCompletoParaFicha(proyecto);
-    const autoPorTexto = item.keywords.some(
-      (keyword) =>
-        contieneKeyword(blobDocumentos, keyword) ||
-        contieneKeyword(blobAccesos, keyword) ||
-        contieneKeyword(blobProyecto, keyword),
-    );
-    const auto = autoPorFicha || autoPorTexto;
-    const manualChecked = !!manual[item.id];
+    const manualEntry = manual[item.id];
+    const manualChecked = !!manualEntry?.checked;
+
+    let fuenteAuto: string | undefined;
+
+    if (item.id === 'ficha_empresa' && proyectoCompletoParaFicha(proyecto)) {
+      fuenteAuto = 'Automático · detectado por ficha del proyecto';
+    }
+
+    if (!fuenteAuto) {
+      const documentoMatch = documentos.find((documento) =>
+        item.keywords.some((keyword) =>
+          contieneKeyword(
+            normalizar([documento.nombre, documento.descripcion, documento.tipo].filter(Boolean).join(' ')),
+            keyword,
+          ),
+        ),
+      );
+      if (documentoMatch) {
+        fuenteAuto = `Automático · detectado por documento "${documentoMatch.nombre}"`;
+      }
+    }
+
+    if (!fuenteAuto) {
+      const accesoMatch = accesos.find((acceso) =>
+        item.keywords.some((keyword) =>
+          contieneKeyword(
+            normalizar([acceso.portal, acceso.url, acceso.usuario, acceso.referenciaClave, acceso.responsable, acceso.notas].filter(Boolean).join(' ')),
+            keyword,
+          ),
+        ),
+      );
+      if (accesoMatch) {
+        fuenteAuto = `Automático · detectado por acceso "${accesoMatch.portal}"`;
+      }
+    }
+
+    if (!fuenteAuto) {
+      const proyectoMatch = item.keywords.some((keyword) => contieneKeyword(blobProyecto, keyword));
+      if (proyectoMatch) {
+        fuenteAuto = 'Automático · detectado por datos del proyecto';
+      }
+    }
+
+    const auto = !!fuenteAuto;
+    const fuenteManual = manualChecked
+      ? `Manual${manualEntry?.updatedBy ? ` · marcado por ${manualEntry.updatedBy}` : ''}${manualEntry?.updatedAt ? ` el ${new Intl.DateTimeFormat('es-CL', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(manualEntry.updatedAt))}` : ''}`
+      : undefined;
+
     return {
       ...item,
       auto,
       manual: manualChecked,
       completo: auto || manualChecked,
+      fuente: fuenteAuto ?? fuenteManual,
     };
   });
 };

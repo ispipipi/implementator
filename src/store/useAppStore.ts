@@ -966,6 +966,8 @@ export const useAppStore = create<AppState>()(
       },
 
       actualizarChecklistExpediente: (proyectoId, itemId, checked) => {
+        const usuario = get().usuarioActivo?.nombre ?? 'Sistema';
+        const timestamp = new Date().toISOString();
         set((s) => {
           const expediente = s.expedientes[proyectoId] ?? expedienteVacio();
           return {
@@ -975,7 +977,11 @@ export const useAppStore = create<AppState>()(
                 ...expediente,
                 checklistManual: {
                   ...(expediente.checklistManual ?? {}),
-                  [itemId]: checked,
+                  [itemId]: {
+                    checked,
+                    updatedBy: checked ? usuario : undefined,
+                    updatedAt: checked ? timestamp : undefined,
+                  },
                 },
               },
             },
