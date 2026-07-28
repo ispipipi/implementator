@@ -33,6 +33,7 @@ export function ProyectoExpediente({ proyectoId }: Props) {
     actualizarChecklistExpediente,
   } = useAppStore();
   const { puedeAdministrar, esEjecutivo } = usePermisos();
+  const puedeMarcarChecklistManual = puedeAdministrar || esEjecutivo;
   const expediente = expedientes[proyectoId] ?? { documentos: [], accesos: [] };
   const proyecto = proyectos.find((item) => item.id === proyectoId) ?? null;
   const [documentoForm, setDocumentoForm] = useState({
@@ -129,7 +130,7 @@ export function ProyectoExpediente({ proyectoId }: Props) {
             <p className="text-sm uppercase tracking-[0.18em] text-emerald-300">Checklist inicial</p>
             <h2 className="mt-2 text-2xl font-semibold text-white">Información base del proyecto</h2>
             <p className="mt-2 text-sm text-slate-400">
-              Este checklist se completa automáticamente al detectar documentos y accesos en el expediente. Los ejecutivos artBPO también pueden marcar elementos manualmente cuando ya fueron validados por otra vía.
+              Este checklist se completa automáticamente al detectar documentos y accesos en el expediente. Los administradores y ejecutivos artBPO también pueden marcar elementos manualmente cuando ya fueron validados por otra vía.
             </p>
           </div>
 
@@ -223,7 +224,7 @@ export function ProyectoExpediente({ proyectoId }: Props) {
                     {item.fuente ? <p className="mt-1 text-xs text-slate-400">{item.fuente}</p> : null}
                   </div>
 
-                  {esEjecutivo ? (
+                  {puedeMarcarChecklistManual ? (
                     <button
                       type="button"
                       onClick={() => actualizarChecklistExpediente(proyectoId, item.id, !item.manual)}
@@ -249,9 +250,9 @@ export function ProyectoExpediente({ proyectoId }: Props) {
           ) : null}
         </div>
 
-        {!esEjecutivo ? (
+        {!puedeMarcarChecklistManual ? (
           <p className="mt-4 text-xs text-slate-500">
-            La marcación manual del checklist está disponible solo para ejecutivos de artBPO.
+            La marcación manual del checklist está disponible solo para administradores y ejecutivos de artBPO.
           </p>
         ) : null}
       </GlassCard>
