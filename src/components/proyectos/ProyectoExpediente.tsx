@@ -218,6 +218,10 @@ export function ProyectoExpediente({ proyectoId }: Props) {
                           Manual
                         </span>
                       ) : null}
+
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 text-xs font-medium text-slate-300">
+                        Frecuencia: {item.frecuencia}
+                      </span>
                     </div>
 
                     <p className="mt-3 text-sm font-medium text-white">{item.label}</p>

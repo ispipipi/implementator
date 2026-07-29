@@ -4,6 +4,7 @@ export type ChecklistExpedienteItem = {
   id: string;
   label: string;
   keywords: string[];
+  frecuencia: 'Inicial' | 'Mensual';
 };
 
 export type ChecklistExpedienteEstado = ChecklistExpedienteItem & {
@@ -14,23 +15,23 @@ export type ChecklistExpedienteEstado = ChecklistExpedienteItem & {
 };
 
 export const checklistExpedienteItems: ChecklistExpedienteItem[] = [
-  { id: 'ficha_empresa', label: 'Ficha inicial de empresa', keywords: ['ficha inicial', 'ficha empresa', 'razon social', 'representante legal'] },
-  { id: 'maestro_personal', label: 'Maestro de Personal completo con base de trabajadores vigentes', keywords: ['maestro personal', 'maestro de personal', 'trabajadores vigentes', 'base trabajadores', 'nomina vigente'] },
-  { id: 'matriz_conceptos', label: 'Matriz de Conceptos (Haberes y Descuentos)', keywords: ['matriz conceptos', 'haberes', 'descuentos', 'conceptos remuneracion'] },
-  { id: 'saldos_vacaciones', label: 'Saldos de Vacaciones', keywords: ['saldos vacaciones', 'saldo vacaciones', 'vacaciones'] },
-  { id: 'estructura_organizacional', label: 'Definición de Estructura Organizacional', keywords: ['estructura organizacional', 'organigrama', 'centro costo', 'sucursales'] },
-  { id: 'grupo_familiar', label: 'Grupo Familiar (Cargas y Tramo de asignación familiar)', keywords: ['grupo familiar', 'cargas familiares', 'tramo asignacion familiar', 'asignacion familiar'] },
-  { id: 'formatos_documentos', label: 'Formato de documentos, plantillas', keywords: ['formato documentos', 'formatos documentos', 'plantillas', 'modelos documentos', 'tipos documentos'] },
-  { id: 'flujos_firma', label: 'Definición Flujos de firma', keywords: ['flujo firma', 'flujos firma', 'firma documentos', 'firmas'] },
-  { id: 'finiquitos', label: 'Finiquitos con Causales de término', keywords: ['finiquitos', 'causales termino', 'causal termino', 'termino contrato'] },
-  { id: 'libros_remuneraciones', label: 'Libros de Remuneraciones historicos', keywords: ['libros remuneraciones', 'libro remuneraciones', 'historicos remuneraciones'] },
-  { id: 'sindicatos', label: 'Sindicatos (cuotas y beneficios)', keywords: ['sindicatos', 'cuotas sindicales', 'beneficios sindicato'] },
-  { id: 'centralizacion_contable', label: 'Formato Centralización Contable', keywords: ['centralizacion contable', 'centralizacion', 'contable'] },
-  { id: 'retenciones_judiciales', label: 'Retenciones Judiciales (Oficios)', keywords: ['retenciones judiciales', 'oficios', 'retenciones'] },
-  { id: 'zona_extrema', label: 'Zona Extrema (si, no. En caso de ser si definir zona)', keywords: ['zona extrema', 'zonas extremas'] },
-  { id: 'licencias_medicas', label: 'Licencias Médicas', keywords: ['licencias medicas', 'licencia medica', 'portal licencias'] },
-  { id: 'ausencias', label: 'Ausencias', keywords: ['ausencias', 'inasistencias'] },
-  { id: 'permisos', label: 'Permisos', keywords: ['permisos', 'permisos administrativos'] },
+  { id: 'ficha_empresa', label: 'Ficha inicial de empresa', keywords: ['ficha inicial', 'ficha empresa', 'razon social', 'representante legal'], frecuencia: 'Inicial' },
+  { id: 'maestro_personal', label: 'Maestro de Personal completo con base de trabajadores vigentes', keywords: ['maestro personal', 'maestro de personal', 'trabajadores vigentes', 'base trabajadores', 'nomina vigente'], frecuencia: 'Mensual' },
+  { id: 'matriz_conceptos', label: 'Matriz de Conceptos (Haberes y Descuentos)', keywords: ['matriz conceptos', 'haberes', 'descuentos', 'conceptos remuneracion'], frecuencia: 'Inicial' },
+  { id: 'saldos_vacaciones', label: 'Saldos de Vacaciones', keywords: ['saldos vacaciones', 'saldo vacaciones', 'vacaciones'], frecuencia: 'Mensual' },
+  { id: 'estructura_organizacional', label: 'Definición de Estructura Organizacional', keywords: ['estructura organizacional', 'organigrama', 'centro costo', 'sucursales'], frecuencia: 'Inicial' },
+  { id: 'grupo_familiar', label: 'Grupo Familiar (Cargas y Tramo de asignación familiar)', keywords: ['grupo familiar', 'cargas familiares', 'tramo asignacion familiar', 'asignacion familiar'], frecuencia: 'Mensual' },
+  { id: 'formatos_documentos', label: 'Formato de documentos, plantillas', keywords: ['formato documentos', 'formatos documentos', 'plantillas', 'modelos documentos', 'tipos documentos'], frecuencia: 'Inicial' },
+  { id: 'flujos_firma', label: 'Definición Flujos de firma', keywords: ['flujo firma', 'flujos firma', 'firma documentos', 'firmas'], frecuencia: 'Inicial' },
+  { id: 'finiquitos', label: 'Finiquitos con Causales de término', keywords: ['finiquitos', 'causales termino', 'causal termino', 'termino contrato'], frecuencia: 'Mensual' },
+  { id: 'libros_remuneraciones', label: 'Libros de Remuneraciones historicos', keywords: ['libros remuneraciones', 'libro remuneraciones', 'historicos remuneraciones'], frecuencia: 'Mensual' },
+  { id: 'sindicatos', label: 'Sindicatos (cuotas y beneficios)', keywords: ['sindicatos', 'cuotas sindicales', 'beneficios sindicato'], frecuencia: 'Mensual' },
+  { id: 'centralizacion_contable', label: 'Formato Centralización Contable', keywords: ['centralizacion contable', 'centralizacion', 'contable'], frecuencia: 'Inicial' },
+  { id: 'retenciones_judiciales', label: 'Retenciones Judiciales (Oficios)', keywords: ['retenciones judiciales', 'oficios', 'retenciones'], frecuencia: 'Mensual' },
+  { id: 'zona_extrema', label: 'Zona Extrema (si, no. En caso de ser si definir zona)', keywords: ['zona extrema', 'zonas extremas'], frecuencia: 'Inicial' },
+  { id: 'licencias_medicas', label: 'Licencias Médicas', keywords: ['licencias medicas', 'licencia medica', 'portal licencias'], frecuencia: 'Mensual' },
+  { id: 'ausencias', label: 'Ausencias', keywords: ['ausencias', 'inasistencias'], frecuencia: 'Mensual' },
+  { id: 'permisos', label: 'Permisos', keywords: ['permisos', 'permisos administrativos'], frecuencia: 'Mensual' },
 ];
 
 const normalizar = (value: string) =>
