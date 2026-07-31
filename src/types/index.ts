@@ -197,6 +197,7 @@ export interface ChecklistManualExpedienteItem {
   checked: boolean;
   updatedBy?: string;
   updatedAt?: string;
+  frecuenciaOverride?: 'Inicial' | 'Mensual';
 }
 
 export interface ExpedienteProyecto {
@@ -282,5 +283,6 @@ export interface AppState {
   guardarAccesoExpediente: (proyectoId: string, acceso: Omit<AccesoCompania, 'id' | 'actualizadoEn' | 'actualizadoPor'> & { id?: string }) => void;
   eliminarAccesoExpediente: (proyectoId: string, accesoId: string) => void;
   actualizarChecklistExpediente: (proyectoId: string, itemId: string, checked: boolean) => void;
+  actualizarFrecuenciaChecklistExpediente: (proyectoId: string, itemId: string, frecuencia: 'Inicial' | 'Mensual') => void;
   recalcularAlertas: () => void;
 }

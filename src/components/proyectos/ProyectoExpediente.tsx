@@ -1,9 +1,10 @@
-import { CheckCircle2, CircleDashed, ExternalLink, FileText, KeyRound, PencilLine, Plus, ShieldAlert, Sparkles, Trash2 } from 'lucide-react';
+import { CheckCircle2, CircleDashed, Download, ExternalLink, FileText, KeyRound, PencilLine, Plus, ShieldAlert, Sparkles, Trash2 } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { usePermisos } from '../../hooks/usePermisos';
 import { useAppStore } from '../../store/useAppStore';
 import { AccesoCompania, DocumentoExpediente, PortalAcceso, TipoDocumentoExpediente } from '../../types';
 import { calcularChecklistExpediente } from '../../utils/expedienteChecklist';
+import { downloadChecklistWorkbook } from '../../utils/exportChecklistWorkbook';
 import { GlassCard } from '../ui/GlassCard';
 
 type Props = {
@@ -31,6 +32,7 @@ export function ProyectoExpediente({ proyectoId }: Props) {
     guardarAccesoExpediente,
     eliminarAccesoExpediente,
     actualizarChecklistExpediente,
+    actualizarFrecuenciaChecklistExpediente,
   } = useAppStore();
   const { puedeAdministrar, esEjecutivo } = usePermisos();
   const puedeMarcarChecklistManual = puedeAdministrar || esEjecutivo;
@@ -76,6 +78,11 @@ export function ProyectoExpediente({ proyectoId }: Props) {
       }),
     [checklist, checklistFiltro],
   );
+
+  const exportarChecklist = async () => {
+    if (!proyecto) return;
+    await downloadChecklistWorkbook(proyecto, checklist);
+  };
 
   const submitDocumento = (event: FormEvent) => {
     event.preventDefault();
@@ -132,6 +139,16 @@ export function ProyectoExpediente({ proyectoId }: Props) {
             <p className="mt-2 text-sm text-slate-400">
               Este checklist se completa automáticamente al detectar documentos y accesos en el expediente. Los administradores y ejecutivos artBPO también pueden marcar elementos manualmente cuando ya fueron validados por otra vía.
             </p>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={exportarChecklist}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.035] px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/8"
+              >
+                <Download className="h-4 w-4" />
+                Descargar checklist
+              </button>
+            </div>
           </div>
 
           <div className="grid min-w-[220px] gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm">
@@ -219,9 +236,29 @@ export function ProyectoExpediente({ proyectoId }: Props) {
                         </span>
                       ) : null}
 
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 text-xs font-medium text-slate-300">
-                        Frecuencia: {item.frecuencia}
-                      </span>
+                      {puedeMarcarChecklistManual ? (
+                        <label className="inline-flex items-center gap-2 rounded-full bg-white/8 px-2.5 py-1 text-xs font-medium text-slate-300">
+                          <span>Frecuencia</span>
+                          <select
+                            value={item.frecuencia}
+                            onChange={(event) =>
+                              actualizarFrecuenciaChecklistExpediente(
+                                proyectoId,
+                                item.id,
+                                event.target.value as 'Inicial' | 'Mensual',
+                              )
+                            }
+                            className="rounded-full border border-white/10 bg-transparent px-2 py-0.5 text-xs text-white"
+                          >
+                            <option value="Inicial">Inicial</option>
+                            <option value="Mensual">Mensual</option>
+                          </select>
+                        </label>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 text-xs font-medium text-slate-300">
+                          Frecuencia: {item.frecuencia}
+                        </span>
+                      )}
                     </div>
 
                     <p className="mt-3 text-sm font-medium text-white">{item.label}</p>

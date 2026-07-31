@@ -970,6 +970,7 @@ export const useAppStore = create<AppState>()(
         const timestamp = new Date().toISOString();
         set((s) => {
           const expediente = s.expedientes[proyectoId] ?? expedienteVacio();
+          const actual = expediente.checklistManual?.[itemId];
           return {
             expedientes: {
               ...s.expedientes,
@@ -981,6 +982,7 @@ export const useAppStore = create<AppState>()(
                     checked,
                     updatedBy: checked ? usuario : undefined,
                     updatedAt: checked ? timestamp : undefined,
+                    frecuenciaOverride: actual?.frecuenciaOverride,
                   },
                 },
               },
@@ -988,6 +990,33 @@ export const useAppStore = create<AppState>()(
           };
         });
         guardarRemoto(get(), 'actualizar_checklist_expediente');
+      },
+
+      actualizarFrecuenciaChecklistExpediente: (proyectoId, itemId, frecuencia) => {
+        const usuario = get().usuarioActivo?.nombre ?? 'Sistema';
+        const timestamp = new Date().toISOString();
+        set((s) => {
+          const expediente = s.expedientes[proyectoId] ?? expedienteVacio();
+          const actual = expediente.checklistManual?.[itemId];
+          return {
+            expedientes: {
+              ...s.expedientes,
+              [proyectoId]: {
+                ...expediente,
+                checklistManual: {
+                  ...(expediente.checklistManual ?? {}),
+                  [itemId]: {
+                    checked: actual?.checked ?? false,
+                    updatedBy: actual?.checked ? actual.updatedBy : usuario,
+                    updatedAt: actual?.checked ? actual.updatedAt : timestamp,
+                    frecuenciaOverride: frecuencia,
+                  },
+                },
+              },
+            },
+          };
+        });
+        guardarRemoto(get(), 'actualizar_frecuencia_checklist_expediente');
       },
 
       recalcularAlertas: () => {

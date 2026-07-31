@@ -12,6 +12,7 @@ export type ChecklistExpedienteEstado = ChecklistExpedienteItem & {
   manual: boolean;
   completo: boolean;
   fuente?: string;
+  frecuenciaBase: 'Inicial' | 'Mensual';
 };
 
 export const checklistExpedienteItems: ChecklistExpedienteItem[] = [
@@ -74,6 +75,7 @@ export const calcularChecklistExpediente = (
   return checklistExpedienteItems.map((item) => {
     const manualEntry = manual[item.id];
     const manualChecked = !!manualEntry?.checked;
+    const frecuencia = manualEntry?.frecuenciaOverride ?? item.frecuencia;
 
     let fuenteAuto: string | undefined;
 
@@ -123,6 +125,8 @@ export const calcularChecklistExpediente = (
 
     return {
       ...item,
+      frecuencia,
+      frecuenciaBase: item.frecuencia,
       auto,
       manual: manualChecked,
       completo: auto || manualChecked,

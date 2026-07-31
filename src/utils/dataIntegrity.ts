@@ -177,6 +177,10 @@ export const sanitizarExpedientes = (expedientes: Record<string, ExpedienteProye
               checked: value.checked,
               updatedBy: typeof value.updatedBy === 'string' ? value.updatedBy : undefined,
               updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : undefined,
+              frecuenciaOverride:
+                value.frecuenciaOverride === 'Inicial' || value.frecuenciaOverride === 'Mensual'
+                  ? value.frecuenciaOverride
+                  : undefined,
             };
           }
           return acc;
