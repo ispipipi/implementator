@@ -5,6 +5,7 @@ import { PLANTILLA_FASES } from '../data/plantillaFases';
 import { SEED_DATA } from '../data/seedData';
 import { PERFILES_ACCESO_SEED, PERFILES_SEED } from '../data/perfiles';
 import { GOOGLE_SHEETS_GANTT_URL } from '../data/googleSheetsSource';
+import { CUMPLIMIENTO_HR_ADMIN_SEED } from '../data/cumplimientoHrAdmin';
 import { Alerta, AppState, ExpedienteProyecto, Fase, Tarea } from '../types';
 import { saveWorkspaceState } from '../services/remoteState';
 import {
@@ -20,6 +21,7 @@ import {
 } from '../utils/progressCalc';
 import {
   canonicalizarResponsable,
+  sanitizarCumplimientoHrAdmin,
   sanitizarAlertas,
   sanitizarEjecutivo,
   sanitizarExpedientes,
@@ -93,9 +95,9 @@ const notificarTareaPorCorreo = (payload: {
 
 const sanitizarSlicesCompartidos = (
   estado: Partial<
-    Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>
+    Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'cumplimientoHrAdmin' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>
   >,
-  fallback: Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>,
+  fallback: Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'cumplimientoHrAdmin' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>,
 ) => {
   const perfiles = asegurarPerfilesBase((estado.perfiles ?? fallback.perfiles).map(sanitizarUsuario));
   const perfilesAcceso = asegurarPerfilesAccesoBase(estado.perfilesAcceso ?? fallback.perfilesAcceso);
@@ -106,6 +108,7 @@ const sanitizarSlicesCompartidos = (
   const tareas = (estado.tareas ?? fallback.tareas).map((tarea) => sanitizarTarea(tarea, personas));
   const alertas = sanitizarAlertas(estado.alertas ?? fallback.alertas, tareas, proyectos, personas);
   const expedientes = sanitizarExpedientes(estado.expedientes ?? fallback.expedientes);
+  const cumplimientoHrAdmin = sanitizarCumplimientoHrAdmin(estado.cumplimientoHrAdmin ?? fallback.cumplimientoHrAdmin);
 
   return {
     perfiles,
@@ -116,6 +119,7 @@ const sanitizarSlicesCompartidos = (
     tareas,
     alertas,
     expedientes,
+    cumplimientoHrAdmin,
     diasAnticipacionAlerta: estado.diasAnticipacionAlerta ?? fallback.diasAnticipacionAlerta,
     fuenteGoogleSheetsUrl: estado.fuenteGoogleSheetsUrl ?? fallback.fuenteGoogleSheetsUrl,
   };
@@ -195,6 +199,7 @@ export const useAppStore = create<AppState>()(
       tareas: SEED_DATA.tareas,
       alertas: [],
       expedientes: {},
+      cumplimientoHrAdmin: CUMPLIMIENTO_HR_ADMIN_SEED,
       vista: 'dashboard',
       proyectoActivoId: null,
       faseActivaId: null,
@@ -240,6 +245,7 @@ export const useAppStore = create<AppState>()(
             tareas: get().tareas,
             alertas: get().alertas,
             expedientes: get().expedientes,
+            cumplimientoHrAdmin: get().cumplimientoHrAdmin,
             diasAnticipacionAlerta: get().diasAnticipacionAlerta,
             fuenteGoogleSheetsUrl: get().fuenteGoogleSheetsUrl,
           }),
@@ -1019,6 +1025,29 @@ export const useAppStore = create<AppState>()(
         guardarRemoto(get(), 'actualizar_frecuencia_checklist_expediente');
       },
 
+      actualizarCumplimientoHrAdmin: (modulo, cambios) => {
+        set((s) => ({
+          cumplimientoHrAdmin: s.cumplimientoHrAdmin.map((item) => {
+            if (item.modulo !== modulo) return item;
+
+            const estado = cambios.estado ?? item.estado;
+            return {
+              ...item,
+              ...cambios,
+              estado,
+              responsable:
+                estado === 'concluido'
+                  ? null
+                  : cambios.responsable !== undefined
+                    ? cambios.responsable
+                    : item.responsable,
+              observacion: (cambios.observacion ?? item.observacion ?? '').trim(),
+            };
+          }),
+        }));
+        guardarRemoto(get(), 'actualizar_cumplimiento_hr_admin');
+      },
+
       recalcularAlertas: () => {
         const { tareas, diasAnticipacionAlerta, alertas } = get();
         const hoy = new Date();
@@ -1140,6 +1169,7 @@ export const useAppStore = create<AppState>()(
             tareas: currentState.tareas,
             alertas: currentState.alertas,
             expedientes: currentState.expedientes,
+            cumplimientoHrAdmin: currentState.cumplimientoHrAdmin,
             diasAnticipacionAlerta: currentState.diasAnticipacionAlerta,
             fuenteGoogleSheetsUrl: currentState.fuenteGoogleSheetsUrl,
           }),
@@ -1155,6 +1185,7 @@ export const useAppStore = create<AppState>()(
         tareas: state.tareas,
         alertas: state.alertas,
         expedientes: state.expedientes,
+        cumplimientoHrAdmin: state.cumplimientoHrAdmin,
         diasAnticipacionAlerta: state.diasAnticipacionAlerta,
         fuenteGoogleSheetsUrl: state.fuenteGoogleSheetsUrl,
       }),

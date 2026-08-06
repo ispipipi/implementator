@@ -1,5 +1,6 @@
-import { Alerta, Ejecutivo, ExpedienteProyecto, Fase, Proyecto, Tarea, UsuarioActivo } from '../types';
+import { Alerta, CumplimientoHrAdminItem, Ejecutivo, ExpedienteProyecto, Fase, Proyecto, Tarea, UsuarioActivo } from '../types';
 import { normalizarResponsable } from './assignee';
+import { CUMPLIMIENTO_HR_ADMIN_SEED } from '../data/cumplimientoHrAdmin';
 
 type Persona = Pick<UsuarioActivo, 'nombre' | 'iniciales'> | Pick<Ejecutivo, 'nombre' | 'iniciales'>;
 
@@ -188,3 +189,32 @@ export const sanitizarExpedientes = (expedientes: Record<string, ExpedienteProye
       },
     ]),
   );
+
+const modulosHrAdminPermitidos = new Set(CUMPLIMIENTO_HR_ADMIN_SEED.map((item) => item.modulo));
+const fallbackHrAdminPorModulo = new Map(CUMPLIMIENTO_HR_ADMIN_SEED.map((item) => [item.modulo, item]));
+
+export const sanitizarCumplimientoHrAdmin = (items: CumplimientoHrAdminItem[] | undefined) => {
+  const rows = Array.isArray(items) ? items : [];
+  const sanitizados = rows
+    .filter((item): item is CumplimientoHrAdminItem => !!item && typeof item.modulo === 'string' && modulosHrAdminPermitidos.has(item.modulo))
+    .map((item) => {
+      const fallback = fallbackHrAdminPorModulo.get(item.modulo);
+      const estado = item.estado === 'concluido' || item.estado === 'en_proceso' ? item.estado : fallback?.estado ?? 'en_proceso';
+      const responsable =
+        estado === 'concluido'
+          ? null
+          : item.responsable === 'artBPO' || item.responsable === 'TMF' || item.responsable === 'REX+'
+            ? item.responsable
+            : null;
+
+      return {
+        modulo: item.modulo,
+        estado,
+        pruebasRealizadas: Boolean(item.pruebasRealizadas),
+        responsable,
+        observacion: typeof item.observacion === 'string' ? item.observacion.trim() : fallback?.observacion ?? '',
+      };
+    });
+
+  return CUMPLIMIENTO_HR_ADMIN_SEED.map((seed) => sanitizados.find((item) => item.modulo === seed.modulo) ?? seed);
+};

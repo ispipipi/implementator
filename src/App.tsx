@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { AjustesView } from './components/ajustes/AjustesView';
 import { LoginView } from './components/auth/LoginView';
 import { InfoClienteView } from './components/clientes/InfoClienteView';
+import { CumplimientoHrAdminView } from './components/dashboard/CumplimientoHrAdminView';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { GanttAdminView } from './components/gantt/GanttAdminView';
 import { Header } from './components/layout/Header';
@@ -79,6 +80,7 @@ function App() {
         {vista === 'mis_tareas' ? <MisTareasView /> : null}
         {vista === 'info_cliente' ? <InfoClienteView /> : null}
         {vista === 'gantt_admin' ? <GanttAdminView /> : null}
+        {vista === 'cumplimiento_hr_admin' ? <CumplimientoHrAdminView /> : null}
         {vista === 'ajustes' ? <AjustesView /> : null}
       </main>
     </div>

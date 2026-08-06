@@ -14,6 +14,7 @@ export function Breadcrumb() {
     vista === 'mis_tareas' ? { label: 'Mis tareas', onClick: () => setVista('mis_tareas') } : null,
     vista === 'info_cliente' ? { label: 'Info cliente', onClick: () => setVista('info_cliente', proyecto?.id) } : null,
     vista === 'gantt_admin' ? { label: 'Gantt admin', onClick: () => setVista('gantt_admin') } : null,
+    vista === 'cumplimiento_hr_admin' ? { label: 'Cumplimiento HR Admin', onClick: () => setVista('cumplimiento_hr_admin') } : null,
     vista === 'ajustes' ? { label: 'Ajustes', onClick: () => setVista('ajustes') } : null,
   ].filter(Boolean) as Array<{ label: string; onClick: () => void }>;
 

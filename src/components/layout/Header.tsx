@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, Building2, CalendarRange, ListTodo, LogOut, Search, Settings, UserRound, X } from 'lucide-react';
+import { BriefcaseBusiness, Building2, CalendarRange, Gauge, ListTodo, LogOut, Search, Settings, UserRound, X } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePermisos, useProyectosVisibles } from '../../hooks/usePermisos';
@@ -8,7 +8,7 @@ import { Breadcrumb } from './Breadcrumb';
 
 export function Header() {
   const { usuarioActivo, setVista, setTareaActiva, setBusquedaTareas, tareas, fases, perfiles, ejecutivos } = useAppStore();
-  const { puedeAdministrar, puedeGestionarUsuarios, puedeVerGanttAdmin } = usePermisos();
+  const { puedeAdministrar, puedeGestionarUsuarios, puedeVerGanttAdmin, esCliente } = usePermisos();
   const proyectosVisibles = useProyectosVisibles();
   const [query, setQuery] = useState('');
   const [openSearch, setOpenSearch] = useState(false);
@@ -294,6 +294,12 @@ export function Header() {
               <Building2 className="h-4 w-4" />
               Info cliente
             </button>
+            {!esCliente ? (
+              <button className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/8" onClick={() => setVista('cumplimiento_hr_admin')}>
+                <Gauge className="h-4 w-4" />
+                HR Admin
+              </button>
+            ) : null}
             {puedeVerGanttAdmin || puedeGestionarUsuarios || puedeAdministrar ? (
               <>
                 {puedeVerGanttAdmin ? (
