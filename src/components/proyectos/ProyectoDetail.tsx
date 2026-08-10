@@ -1,10 +1,11 @@
-import { AlertTriangle, Building2, CalendarDays, Edit3, FolderArchive, LayoutGrid, ListChecks, TimerReset } from 'lucide-react';
+import { AlertTriangle, Building2, CalendarDays, ClipboardCheck, Edit3, FolderArchive, LayoutGrid, ListChecks, TimerReset } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { usePermisos } from '../../hooks/usePermisos';
 import { useAppStore, calcCumplimientoGanttProyecto, calcPctPlanificadoProyecto, calcPctProyecto, semaforoCumplimientoProyecto } from '../../store/useAppStore';
 import { Proyecto } from '../../types';
 import { getClientInfo } from '../../utils/clientInfo';
 import { AlertPanel } from '../layout/AlertPanel';
+import { CumplimientoHrAdminView } from '../dashboard/CumplimientoHrAdminView';
 import { GanttView } from '../gantt/GanttView';
 import { GlassCard } from '../ui/GlassCard';
 import { ProgressRing } from '../ui/ProgressRing';
@@ -14,13 +15,13 @@ import { ProyectoExpediente } from './ProyectoExpediente';
 import { ProyectoEditDrawer } from './ProyectoEditDrawer';
 import { TareasList } from './TareasList';
 
-type Tab = 'tareas' | 'fases' | 'gantt' | 'expediente' | 'alertas';
+type Tab = 'tareas' | 'fases' | 'gantt' | 'expediente' | 'alertas' | 'hr_admin';
 
 export function ProyectoDetail() {
-  const { proyectoActivoId, faseActivaId, proyectos, fases, tareas, setVista } = useAppStore();
+  const { proyectoActivoId, faseActivaId, proyectos, fases, tareas, cumplimientoHrAdminPorProyecto, setVista } = useAppStore();
   const [tab, setTab] = useState<Tab>('fases');
   const [editing, setEditing] = useState<Proyecto | null>(null);
-  const { puedeEditarProyectos } = usePermisos();
+  const { puedeEditarProyectos, esCliente } = usePermisos();
   const proyecto = proyectos.find((p) => p.id === proyectoActivoId);
   const fasesProyecto = useMemo(() => fases.filter((f) => f.proyectoId === proyectoActivoId).sort((a, b) => a.orden - b.orden), [fases, proyectoActivoId]);
   const tareasProyecto = tareas.filter((t) => t.proyectoId === proyectoActivoId);
@@ -49,6 +50,10 @@ export function ProyectoDetail() {
   const planificado = calcPctPlanificadoProyecto(proyecto.id, tareas);
   const estado = semaforoCumplimientoProyecto(proyecto.id, tareas);
   const info = getClientInfo(proyecto);
+  const hrAdmin = cumplimientoHrAdminPorProyecto[proyecto.id] ?? [];
+  const hrAdminAvance = hrAdmin.length
+    ? Math.round((hrAdmin.filter((item) => item.estado === 'concluido').length / hrAdmin.length) * 100)
+    : 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -118,11 +123,13 @@ export function ProyectoDetail() {
           ['tareas', ListChecks, 'Todas las tareas'],
           ['gantt', TimerReset, 'Gantt'],
           ['expediente', FolderArchive, 'Expediente'],
+          ...(!esCliente ? [['hr_admin', ClipboardCheck, 'HR Admin']] : []),
           ['alertas', AlertTriangle, 'Alertas'],
         ].map(([id, Icon, label]) => (
           <button key={id as string} className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium ${tab === id ? 'border-emerald-300/40 bg-emerald-300/12 text-emerald-100' : 'border-white/10 text-slate-300 hover:bg-white/8'}`} onClick={() => setTab(id as Tab)}>
             <Icon className="h-4 w-4" />
             {label as string}
+            {id === 'hr_admin' ? <span className="rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[10px] text-emerald-200">{hrAdminAvance}%</span> : null}
           </button>
         ))}
       </div>
@@ -169,6 +176,7 @@ export function ProyectoDetail() {
 
       {tab === 'gantt' ? <GanttView tareas={tareasFase} exportConfig={{ proyecto, fases: fasesProyecto, tareas: tareasFase }} /> : null}
       {tab === 'expediente' ? <ProyectoExpediente proyectoId={proyecto.id} /> : null}
+      {tab === 'hr_admin' ? <CumplimientoHrAdminView proyectoId={proyecto.id} /> : null}
       {tab === 'alertas' ? <AlertPanel /> : null}
       <ProyectoEditDrawer proyecto={editing} onClose={() => setEditing(null)} />
     </div>

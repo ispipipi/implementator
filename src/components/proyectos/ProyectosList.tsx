@@ -1,10 +1,9 @@
-import { CalendarDays, Edit3, Plus } from 'lucide-react';
+import { CalendarDays, ChevronRight, Edit3, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { usePermisos, useProyectosVisibles } from '../../hooks/usePermisos';
-import { useAppStore, calcCumplimientoGanttProyecto, calcPctPlanificadoProyecto, calcPctProyecto, semaforoCumplimientoProyecto } from '../../store/useAppStore';
+import { useAppStore, calcCumplimientoGanttProyecto, calcPctProyecto, semaforoCumplimientoProyecto } from '../../store/useAppStore';
 import { Proyecto } from '../../types';
 import { GlassCard } from '../ui/GlassCard';
-import { ProgressBar } from '../ui/ProgressBar';
 import { TrafficLightOrb } from '../ui/TrafficLightOrb';
 import { ProyectoEditDrawer } from './ProyectoEditDrawer';
 
@@ -29,56 +28,42 @@ export function ProyectosList() {
         ) : null}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <GlassCard className="p-4 sm:p-5">
+      <div className="grid gap-3">
         {proyectos.map((proyecto) => {
           const pct = calcPctProyecto(proyecto.id, tareas);
           const cumplimiento = calcCumplimientoGanttProyecto(proyecto.id, tareas);
-          const planificado = calcPctPlanificadoProyecto(proyecto.id, tareas);
           const estado = semaforoCumplimientoProyecto(proyecto.id, tareas);
 
           return (
-            <GlassCard key={proyecto.id} interactive className="p-5">
-              <div className="flex h-full flex-col">
-                <div className="mb-5 flex items-start justify-between gap-4">
-                  <button className="min-w-0 text-left" onClick={() => setVista('proyecto', proyecto.id)}>
-                    <h2 className="truncate text-xl font-semibold text-white">{proyecto.nombre}</h2>
-                    <p className="mt-1 text-sm text-slate-500">RUT {proyecto.rut}</p>
-                  </button>
-                  <div className="flex items-center gap-3">
-                    <TrafficLightOrb estado={estado} size="md" />
-                    {puedeEditarProyectos ? (
-                      <button className="rounded-lg border border-white/10 p-2 text-slate-300 hover:bg-white/8" onClick={() => setEditing(proyecto)} aria-label={`Editar ${proyecto.nombre}`}>
-                        <Edit3 className="h-4 w-4" />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="mb-5 grid gap-3 text-sm text-slate-300">
-                  <span className="inline-flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4 text-slate-500" />
-                    {proyecto.fechaInicio} a {proyecto.fechaGoLive}
+            <div key={proyecto.id} className="flex flex-wrap items-center gap-4 rounded-xl border border-white/10 bg-white/[0.025] p-4 transition hover:border-emerald-300/35 hover:bg-white/[0.05] sm:flex-nowrap">
+              <button className="flex min-w-0 flex-1 items-center gap-4 text-left" onClick={() => setVista('proyecto', proyecto.id)}>
+                <TrafficLightOrb estado={estado} size="md" />
+                <span className="min-w-0">
+                  <span className="block truncate text-lg font-semibold text-white">{proyecto.nombre}</span>
+                  <span className="mt-1 inline-flex items-center gap-1.5 text-xs text-slate-500">
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {proyecto.fechaInicio} · {proyecto.fechaGoLive}
                   </span>
-                  <span>Sistema origen: {proyecto.sistemaOrigen}</span>
-                </div>
-
-                <div className="mt-auto">
-                  <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="text-slate-400">Cumplimiento Gantt</span>
-                    <span className="font-semibold text-white">{cumplimiento}%</span>
-                  </div>
-                  <ProgressBar value={cumplimiento} tone={estado === 'rojo' ? 'red' : estado === 'amarillo' ? 'amber' : 'emerald'} />
-                  <div className="mt-3 flex items-center justify-between text-sm">
-                    <span className="text-slate-400">% avance real</span>
-                    <span className="font-semibold text-white">{pct}%</span>
-                  </div>
-                  <p className="mt-2 text-xs text-slate-500">Planificado a hoy: {planificado}%</p>
-                </div>
+                </span>
+              </button>
+              <div className="flex items-center gap-5 text-center">
+                <span><strong className="block text-lg text-white">{cumplimiento}%</strong><small className="text-xs text-slate-500">Gantt</small></span>
+                <span><strong className="block text-lg text-white">{pct}%</strong><small className="text-xs text-slate-500">Avance</small></span>
               </div>
-            </GlassCard>
+              {puedeEditarProyectos ? (
+                <button className="rounded-lg border border-white/10 p-2 text-slate-300 hover:bg-white/8" onClick={() => setEditing(proyecto)} aria-label={`Editar ${proyecto.nombre}`}>
+                  <Edit3 className="h-4 w-4" />
+                </button>
+              ) : null}
+              <button type="button" className="rounded-lg p-1 text-slate-500 hover:text-white" onClick={() => setVista('proyecto', proyecto.id)} aria-label={`Abrir ${proyecto.nombre}`}>
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
           );
         })}
       </div>
+      </GlassCard>
       <ProyectoEditDrawer proyecto={editing} onClose={() => setEditing(null)} />
     </div>
   );

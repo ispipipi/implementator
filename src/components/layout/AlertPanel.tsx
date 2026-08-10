@@ -1,4 +1,4 @@
-import { AlertTriangle, Bell, Check, ChevronDown, ChevronRight, UserPlus } from 'lucide-react';
+import { AlertTriangle, Bell, CheckCircle2, ChevronDown, ChevronRight, Clock3, ShieldAlert, UserPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { Tarea } from '../../types';
@@ -26,47 +26,32 @@ const etiquetaTipoAlerta: Record<string, string> = {
 
 type GrupoAlerta = 'criticas' | 'hoy' | 'proximas' | 'reasignadas' | 'otras';
 
-const grupoConfig: Record<
-  GrupoAlerta,
-  { label: string; empty: string; accent: string; badge: string }
-> = {
-  criticas: {
-    label: 'Críticas',
-    empty: 'Sin alertas críticas.',
-    accent: 'text-red-100',
-    badge: 'bg-red-500 text-white',
-  },
-  hoy: {
-    label: 'Hoy',
-    empty: 'Sin alertas para hoy.',
-    accent: 'text-amber-100',
-    badge: 'bg-amber-400/15 text-amber-100',
-  },
-  proximas: {
-    label: 'Próximas',
-    empty: 'Sin alertas próximas.',
-    accent: 'text-orange-100',
-    badge: 'bg-orange-400/15 text-orange-100',
-  },
-  reasignadas: {
-    label: 'Reasignadas',
-    empty: 'Sin tareas reasignadas.',
-    accent: 'text-blue-100',
-    badge: 'bg-blue-400/15 text-blue-100',
-  },
-  otras: {
-    label: 'Otras',
-    empty: 'Sin otras alertas.',
-    accent: 'text-slate-200',
-    badge: 'bg-white/8 text-slate-200',
-  },
+const grupoConfig: Record<GrupoAlerta, { label: string; empty: string; tone: string; dot: string }> = {
+  criticas: { label: 'Críticas', empty: 'No hay alertas críticas.', tone: 'text-red-500', dot: 'bg-red-500' },
+  hoy: { label: 'Hoy', empty: 'No hay alertas para hoy.', tone: 'text-amber-500', dot: 'bg-amber-400' },
+  proximas: { label: 'Próximas', empty: 'No hay alertas próximas.', tone: 'text-orange-500', dot: 'bg-orange-400' },
+  reasignadas: { label: 'Reasignaciones', empty: 'No hay reasignaciones pendientes.', tone: 'text-sky-500', dot: 'bg-sky-400' },
+  otras: { label: 'Otras', empty: 'No hay otras alertas.', tone: 'text-slate-500', dot: 'bg-slate-400' },
 };
+
+const prioridadTipo: Record<string, number> = {
+  vencida: 0,
+  bloqueada: 1,
+  solicitud_reasignacion: 2,
+  reasignacion_rechazada: 3,
+  reasignada: 4,
+  proxima_vencer: 5,
+  en_riesgo: 6,
+};
+
+const esCritica = (tipo: string) => tipo === 'vencida' || tipo === 'bloqueada' || tipo === 'en_riesgo';
+const esReasignacion = (tipo: string) => tipo === 'reasignada' || tipo === 'solicitud_reasignacion' || tipo === 'reasignacion_rechazada';
 
 export function AlertPanel() {
   const { alertas, proyectos, tareas, marcarAlertaLeida, setVista, usuarioActivo } = useAppStore();
   const [tareaSeleccionada, setTareaSeleccionada] = useState<Tarea | null>(null);
   const [grupoActivo, setGrupoActivo] = useState<'todas' | GrupoAlerta>('todas');
-  const [gruposAbiertos, setGruposAbiertos] = useState<Set<GrupoAlerta>>(new Set(['criticas', 'hoy']));
+  const [gruposAbiertos, setGruposAbiertos] = useState<Set<GrupoAlerta>>(new Set(['criticas']));
 
   const buscarTareaAlerta = (alerta: (typeof alertas)[number]) => {
     const tareaPorId = tareas.find((item) => item.id === alerta.tareaId);
@@ -89,38 +74,32 @@ export function AlertPanel() {
       setTareaSeleccionada(tarea);
       return;
     }
-
     setVista('proyecto', alerta.proyectoId);
   };
 
-  const pendientes = useMemo(
-    () =>
-      alertas
-        .filter((a) => !a.leida && alertaVisibleParaUsuario(a, usuarioActivo))
-        .sort((a, b) => {
-          const prioridad = {
-            vencida: 0,
-            bloqueada: 1,
-            solicitud_reasignacion: 2,
-            reasignacion_rechazada: 3,
-            reasignada: 4,
-            proxima_vencer: 5,
-            en_riesgo: 6,
-          };
-          return prioridad[a.tipo] - prioridad[b.tipo];
-        }),
-    [alertas, usuarioActivo],
-  );
+  const pendientes = useMemo(() => {
+    const unicas = new Map<string, (typeof alertas)[number]>();
+    alertas
+      .filter((alerta) => !alerta.leida && alertaVisibleParaUsuario(alerta, usuarioActivo))
+      .forEach((alerta) => {
+        const anterior = unicas.get(alerta.tareaId);
+        if (!anterior || new Date(alerta.creadaEn).getTime() >= new Date(anterior.creadaEn).getTime()) {
+          unicas.set(alerta.tareaId, alerta);
+        }
+      });
+
+    return Array.from(unicas.values()).sort((a, b) => {
+      const prioridad = (prioridadTipo[a.tipo] ?? 9) - (prioridadTipo[b.tipo] ?? 9);
+      if (prioridad !== 0) return prioridad;
+      return new Date(a.creadaEn).getTime() - new Date(b.creadaEn).getTime();
+    });
+  }, [alertas, usuarioActivo]);
 
   const clasificarAlerta = (alerta: (typeof alertas)[number]): GrupoAlerta => {
     const tarea = buscarTareaAlerta(alerta);
-    if (alerta.tipo === 'vencida' || alerta.tipo === 'bloqueada' || alerta.tipo === 'en_riesgo') return 'criticas';
-    if (alerta.tipo === 'reasignada' || alerta.tipo === 'solicitud_reasignacion' || alerta.tipo === 'reasignacion_rechazada') return 'reasignadas';
-    if (alerta.tipo === 'proxima_vencer') {
-      const dias = tarea ? diasParaVencimiento(tarea) : null;
-      if (dias === 0) return 'hoy';
-      return 'proximas';
-    }
+    if (esCritica(alerta.tipo)) return 'criticas';
+    if (esReasignacion(alerta.tipo)) return 'reasignadas';
+    if (alerta.tipo === 'proxima_vencer') return tarea && diasParaVencimiento(tarea) === 0 ? 'hoy' : 'proximas';
     return 'otras';
   };
 
@@ -132,9 +111,7 @@ export function AlertPanel() {
       reasignadas: [],
       otras: [],
     };
-    pendientes.forEach((alerta) => {
-      base[clasificarAlerta(alerta)].push(alerta);
-    });
+    pendientes.forEach((alerta) => base[clasificarAlerta(alerta)].push(alerta));
     return base;
   }, [pendientes]);
 
@@ -148,107 +125,112 @@ export function AlertPanel() {
     });
 
   return (
-    <GlassCard className="p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Bell className="h-4 w-4 text-amber-300" />
-          <h3 className="font-semibold text-white">Alertas</h3>
+    <GlassCard className="overflow-hidden p-0">
+      <div className="border-b border-white/10 px-5 py-5 sm:px-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
+              <Bell className="h-3.5 w-3.5" />
+              Centro operacional
+            </div>
+            <h3 className="mt-2 text-xl font-semibold text-white">Alertas</h3>
+          </div>
+          <div className={`flex h-11 min-w-11 items-center justify-center rounded-2xl border text-sm font-semibold ${pendientes.length ? 'border-red-300/35 bg-red-500/10 text-red-200' : 'border-white/10 bg-white/[0.04] text-slate-400'}`}>
+            {pendientes.length}
+          </div>
         </div>
-        <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-xs text-amber-200">{pendientes.length}</span>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setGrupoActivo('todas')}
-          className={`rounded-lg border px-3 py-2 text-sm transition ${grupoActivo === 'todas' ? 'border-emerald-300/35 bg-emerald-400/12 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-slate-300 hover:bg-white/8'}`}
-        >
-          Todas
-        </button>
-        {(Object.keys(grupoConfig) as GrupoAlerta[]).map((grupo) => (
+      <div className="border-b border-white/10 px-5 py-4 sm:px-6">
+        <div className="flex flex-wrap gap-2">
           <button
-            key={grupo}
             type="button"
-            onClick={() => setGrupoActivo(grupo)}
-            className={`rounded-lg border px-3 py-2 text-sm transition ${grupoActivo === grupo ? 'border-emerald-300/35 bg-emerald-400/12 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-slate-300 hover:bg-white/8'}`}
+            onClick={() => setGrupoActivo('todas')}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${grupoActivo === 'todas' ? 'border-emerald-300/45 bg-emerald-400/12 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-slate-400 hover:text-white'}`}
           >
-            {grupoConfig[grupo].label} ({grupos[grupo].length})
+            Todas <span className="ml-1 opacity-60">{pendientes.length}</span>
           </button>
-        ))}
+          {(Object.keys(grupoConfig) as GrupoAlerta[]).map((grupo) => (
+            <button
+              key={grupo}
+              type="button"
+              onClick={() => setGrupoActivo(grupo)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${grupoActivo === grupo ? 'border-emerald-300/45 bg-emerald-400/12 text-emerald-100' : 'border-white/10 bg-white/[0.035] text-slate-400 hover:text-white'}`}
+            >
+              {grupoConfig[grupo].label} <span className="ml-1 opacity-60">{grupos[grupo].length}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 p-5 sm:p-6">
         {pendientes.length ? (
           gruposVisibles.map((grupo) => {
             const items = grupos[grupo];
             const abierto = gruposAbiertos.has(grupo) || grupoActivo !== 'todas';
             const config = grupoConfig[grupo];
-
             if (!items.length && grupoActivo === 'todas') return null;
 
             return (
-              <div key={grupo} className="rounded-xl border border-white/10 bg-white/[0.03]">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between gap-3 p-3 text-left"
-                  onClick={() => toggleGrupo(grupo)}
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    {abierto ? <ChevronDown className="h-4 w-4 text-slate-500" /> : <ChevronRight className="h-4 w-4 text-slate-500" />}
-                    <span className={`font-semibold ${config.accent}`}>{config.label}</span>
-                  </div>
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${config.badge}`}>{items.length}</span>
+              <section key={grupo} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025]">
+                <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left" onClick={() => toggleGrupo(grupo)}>
+                  <span className="flex items-center gap-2.5">
+                    <span className={`h-2 w-2 rounded-full ${config.dot} ${grupo === 'criticas' && items.length ? 'animate-pulse' : ''}`} />
+                    <span className={`text-sm font-semibold ${config.tone}`}>{config.label}</span>
+                  </span>
+                  <span className="flex items-center gap-2 text-xs text-slate-500">
+                    {items.length}
+                    {abierto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </span>
                 </button>
 
                 {abierto ? (
-                  <div className="space-y-3 border-t border-white/10 p-3">
-                    {items.length ? (
-                      items.map((alerta) => {
-            const proyecto = proyectos.find((p) => p.id === alerta.proyectoId);
-            const esVencida = alerta.tipo === 'vencida';
-            const esReasignada =
-              alerta.tipo === 'reasignada' || alerta.tipo === 'solicitud_reasignacion' || alerta.tipo === 'reasignacion_rechazada';
-            return (
-              <div
-                key={alerta.id}
-                className={[
-                  'rounded-lg border p-3 transition',
-                  esVencida
-                    ? 'border-red-400/50 bg-red-500/15 shadow-[0_0_26px_rgba(239,68,68,0.12)] hover:border-red-300/80'
-                    : esReasignada
-                      ? 'border-blue-300/30 bg-blue-400/10 hover:border-blue-300/55'
-                      : 'border-white/8 bg-white/[0.035] hover:border-emerald-300/25 hover:bg-white/8',
-                ].join(' ')}
-              >
-                <button className="w-full text-left text-sm font-medium text-slate-100 hover:text-white" onClick={() => abrirAlerta(alerta)}>
-                  <span className="mb-2 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold" style={esVencida ? { background: '#ef4444', color: '#ffffff' } : undefined}>
-                    {esVencida ? <AlertTriangle className="h-3.5 w-3.5" /> : esReasignada ? <UserPlus className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
-                    {etiquetaTipoAlerta[alerta.tipo] ?? alerta.tipo.replace(/_/g, ' ')}
-                  </span>
-                  {alerta.mensaje}
-                </button>
-                <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-500">
-                  <span className="truncate">{proyecto?.nombre ?? 'Proyecto'}</span>
-                  <button className="inline-flex items-center gap-1 text-emerald-300 hover:text-emerald-200" onClick={() => marcarAlertaLeida(alerta.id)}>
-                    <Check className="h-3.5 w-3.5" />
-                    Leída
-                  </button>
-                </div>
-              </div>
+                  <div className="border-t border-white/10">
+                    {items.length ? items.map((alerta) => {
+                      const proyecto = proyectos.find((p) => p.id === alerta.proyectoId);
+                      const tarea = buscarTareaAlerta(alerta);
+                      const critica = esCritica(alerta.tipo);
+                      const reasignacion = esReasignacion(alerta.tipo);
+                      const Icono = critica ? ShieldAlert : reasignacion ? UserPlus : alerta.tipo === 'proxima_vencer' ? Clock3 : AlertTriangle;
+
+                      return (
+                        <div key={alerta.id} className="group flex items-start gap-3 border-b border-white/8 px-4 py-4 last:border-b-0 hover:bg-white/[0.035]">
+                          <span className={`mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${critica ? 'bg-red-500/12 text-red-300' : reasignacion ? 'bg-sky-400/12 text-sky-300' : 'bg-amber-400/12 text-amber-300'}`}>
+                            <Icono className="h-4 w-4" />
+                          </span>
+                          <button type="button" className="min-w-0 flex-1 text-left" onClick={() => abrirAlerta(alerta)}>
+                            <span className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${critica ? 'text-red-300' : reasignacion ? 'text-sky-300' : 'text-amber-300'}`}>
+                              {etiquetaTipoAlerta[alerta.tipo] ?? alerta.tipo.replace(/_/g, ' ')}
+                            </span>
+                            <span className="mt-1 block line-clamp-2 text-sm font-medium text-slate-100 group-hover:text-white">{tarea?.nombre ?? alerta.mensaje}</span>
+                            <span className="mt-1 block truncate text-xs text-slate-500">{proyecto?.nombre ?? 'Proyecto'} · {alerta.mensaje}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="mt-1 rounded-lg p-1.5 text-slate-600 opacity-70 transition hover:bg-emerald-400/10 hover:text-emerald-300 group-hover:opacity-100"
+                            onClick={() => marcarAlertaLeida(alerta.id)}
+                            aria-label="Marcar alerta como leída"
+                            title="Marcar como leída"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       );
-                    })
-                    ) : (
-                      <p className="rounded-lg border border-white/8 bg-white/[0.035] p-3 text-sm text-slate-400">{config.empty}</p>
-                    )}
+                    }) : <p className="px-4 py-4 text-sm text-slate-500">{config.empty}</p>}
                   </div>
                 ) : null}
-              </div>
+              </section>
             );
           })
         ) : (
-          <p className="rounded-lg border border-white/8 bg-white/[0.035] p-3 text-sm text-slate-400">Sin alertas pendientes.</p>
+          <div className="rounded-2xl border border-dashed border-white/10 px-5 py-10 text-center">
+            <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-300" />
+            <p className="mt-3 text-sm font-medium text-slate-300">Todo bajo control</p>
+            <p className="mt-1 text-xs text-slate-500">No hay alertas pendientes.</p>
+          </div>
         )}
       </div>
+
       <TareaEditDrawer tarea={tareaSeleccionada} onClose={() => setTareaSeleccionada(null)} />
     </GlassCard>
   );

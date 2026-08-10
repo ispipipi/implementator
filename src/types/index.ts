@@ -239,6 +239,7 @@ export interface AppState {
   alertas: Alerta[];
   expedientes: Record<string, ExpedienteProyecto>;
   cumplimientoHrAdmin: CumplimientoHrAdminItem[];
+  cumplimientoHrAdminPorProyecto: Record<string, CumplimientoHrAdminItem[]>;
   vista: Vista;
   proyectoActivoId: string | null;
   faseActivaId: string | null;
@@ -259,7 +260,7 @@ export interface AppState {
   setTema: (tema: TemaApp) => void;
   alternarTema: () => void;
   setFuenteGoogleSheetsUrl: (url: string) => void;
-  aplicarEstadoCompartido: (estado: Partial<Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'cumplimientoHrAdmin' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>>) => void;
+  aplicarEstadoCompartido: (estado: Partial<Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'cumplimientoHrAdmin' | 'cumplimientoHrAdminPorProyecto' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>>) => void;
   crearPerfil: (perfil: Omit<UsuarioActivo, 'id'>) => void;
   actualizarPerfil: (id: string, cambios: Partial<UsuarioActivo>) => void;
   eliminarPerfil: (id: string) => void;
@@ -306,5 +307,6 @@ export interface AppState {
   actualizarChecklistExpediente: (proyectoId: string, itemId: string, checked: boolean) => void;
   actualizarFrecuenciaChecklistExpediente: (proyectoId: string, itemId: string, frecuencia: 'Inicial' | 'Mensual') => void;
   actualizarCumplimientoHrAdmin: (modulo: string, cambios: Partial<CumplimientoHrAdminItem>) => void;
+  actualizarCumplimientoHrAdminProyecto: (proyectoId: string, modulo: string, cambios: Partial<CumplimientoHrAdminItem>) => void;
   recalcularAlertas: () => void;
 }

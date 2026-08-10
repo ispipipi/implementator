@@ -161,6 +161,25 @@ export const sanitizarAlertas = (alertas: Alerta[], tareas: Tarea[], proyectos: 
     }));
 };
 
+/** Keeps the alert inbox focused on the current state of each task. */
+export const consolidarAlertas = (alertas: Alerta[]) => {
+  const porTarea = new Map<string, Alerta>();
+
+  alertas.forEach((alerta) => {
+    const anterior = porTarea.get(alerta.tareaId);
+    if (!anterior) {
+      porTarea.set(alerta.tareaId, alerta);
+      return;
+    }
+
+    const fechaAlerta = new Date(alerta.creadaEn).getTime();
+    const fechaAnterior = new Date(anterior.creadaEn).getTime();
+    if (fechaAlerta >= fechaAnterior) porTarea.set(alerta.tareaId, alerta);
+  });
+
+  return Array.from(porTarea.values());
+};
+
 export const sanitizarExpedientes = (expedientes: Record<string, ExpedienteProyecto>) =>
   Object.fromEntries(
     Object.entries(expedientes).map(([proyectoId, expediente]) => [
@@ -217,4 +236,26 @@ export const sanitizarCumplimientoHrAdmin = (items: CumplimientoHrAdminItem[] | 
     });
 
   return CUMPLIMIENTO_HR_ADMIN_SEED.map((seed) => sanitizados.find((item) => item.modulo === seed.modulo) ?? seed);
+};
+
+export const sanitizarCumplimientoHrAdminPorProyecto = (
+  mapa: Record<string, CumplimientoHrAdminItem[]> | undefined,
+  proyectos: Proyecto[],
+  legado: CumplimientoHrAdminItem[] | undefined,
+) => {
+  const legadoSanitizado = sanitizarCumplimientoHrAdmin(legado);
+  const mapaEntrada = mapa && !Array.isArray(mapa) ? mapa : {};
+
+  return Object.fromEntries(
+    proyectos.map((proyecto, index) => {
+      const datosProyecto = mapaEntrada[proyecto.id];
+      const filas = Array.isArray(datosProyecto)
+        ? sanitizarCumplimientoHrAdmin(datosProyecto)
+        : index === 0 && Array.isArray(legado)
+          ? legadoSanitizado
+          : sanitizarCumplimientoHrAdmin(undefined);
+
+      return [proyecto.id, filas.map((fila) => ({ ...fila }))];
+    }),
+  );
 };

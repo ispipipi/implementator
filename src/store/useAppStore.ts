@@ -22,7 +22,9 @@ import {
 import {
   canonicalizarResponsable,
   sanitizarCumplimientoHrAdmin,
+  sanitizarCumplimientoHrAdminPorProyecto,
   sanitizarAlertas,
+  consolidarAlertas,
   sanitizarEjecutivo,
   sanitizarExpedientes,
   sanitizarFase,
@@ -40,6 +42,28 @@ const guardarRemoto = (state: AppState, motivo: string) => {
     console.warn('No se pudo guardar el estado remoto', error);
   });
 };
+
+const actualizarFilaHrAdmin = (
+  filas: AppState['cumplimientoHrAdmin'],
+  modulo: string,
+  cambios: Partial<AppState['cumplimientoHrAdmin'][number]>,
+) => filas.map((item) => {
+  if (item.modulo !== modulo) return item;
+
+  const estado = cambios.estado ?? item.estado;
+  return {
+    ...item,
+    ...cambios,
+    estado,
+    responsable:
+      estado === 'concluido'
+        ? null
+        : cambios.responsable !== undefined
+          ? cambios.responsable
+          : item.responsable,
+    observacion: (cambios.observacion ?? item.observacion ?? '').trim(),
+  };
+});
 
 const expedienteVacio = (): ExpedienteProyecto => ({ documentos: [], accesos: [], checklistManual: {} });
 const obtenerPersonasActivas = (state: Pick<AppState, 'perfiles' | 'ejecutivos'>) => [
@@ -95,9 +119,9 @@ const notificarTareaPorCorreo = (payload: {
 
 const sanitizarSlicesCompartidos = (
   estado: Partial<
-    Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'cumplimientoHrAdmin' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>
+    Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'cumplimientoHrAdmin' | 'cumplimientoHrAdminPorProyecto' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>
   >,
-  fallback: Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'cumplimientoHrAdmin' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>,
+  fallback: Pick<AppState, 'perfiles' | 'perfilesAcceso' | 'ejecutivos' | 'proyectos' | 'fases' | 'tareas' | 'alertas' | 'expedientes' | 'cumplimientoHrAdmin' | 'cumplimientoHrAdminPorProyecto' | 'diasAnticipacionAlerta' | 'fuenteGoogleSheetsUrl'>,
 ) => {
   const perfiles = asegurarPerfilesBase((estado.perfiles ?? fallback.perfiles).map(sanitizarUsuario));
   const perfilesAcceso = asegurarPerfilesAccesoBase(estado.perfilesAcceso ?? fallback.perfilesAcceso);
@@ -106,9 +130,14 @@ const sanitizarSlicesCompartidos = (
   const fases = (estado.fases ?? fallback.fases).map((fase, index) => sanitizarFase(fase, index));
   const personas = [...perfiles.filter((perfil) => perfil.activo !== false), ...ejecutivos];
   const tareas = (estado.tareas ?? fallback.tareas).map((tarea) => sanitizarTarea(tarea, personas));
-  const alertas = sanitizarAlertas(estado.alertas ?? fallback.alertas, tareas, proyectos, personas);
+  const alertas = consolidarAlertas(sanitizarAlertas(estado.alertas ?? fallback.alertas, tareas, proyectos, personas));
   const expedientes = sanitizarExpedientes(estado.expedientes ?? fallback.expedientes);
   const cumplimientoHrAdmin = sanitizarCumplimientoHrAdmin(estado.cumplimientoHrAdmin ?? fallback.cumplimientoHrAdmin);
+  const cumplimientoHrAdminPorProyecto = sanitizarCumplimientoHrAdminPorProyecto(
+    estado.cumplimientoHrAdminPorProyecto ?? fallback.cumplimientoHrAdminPorProyecto,
+    proyectos,
+    estado.cumplimientoHrAdmin ?? fallback.cumplimientoHrAdmin,
+  );
 
   return {
     perfiles,
@@ -120,6 +149,7 @@ const sanitizarSlicesCompartidos = (
     alertas,
     expedientes,
     cumplimientoHrAdmin,
+    cumplimientoHrAdminPorProyecto,
     diasAnticipacionAlerta: estado.diasAnticipacionAlerta ?? fallback.diasAnticipacionAlerta,
     fuenteGoogleSheetsUrl: estado.fuenteGoogleSheetsUrl ?? fallback.fuenteGoogleSheetsUrl,
   };
@@ -200,6 +230,9 @@ export const useAppStore = create<AppState>()(
       alertas: [],
       expedientes: {},
       cumplimientoHrAdmin: CUMPLIMIENTO_HR_ADMIN_SEED,
+      cumplimientoHrAdminPorProyecto: Object.fromEntries(
+        SEED_DATA.proyectos.map((proyecto) => [proyecto.id, CUMPLIMIENTO_HR_ADMIN_SEED.map((item) => ({ ...item }))]),
+      ),
       vista: 'dashboard',
       proyectoActivoId: null,
       faseActivaId: null,
@@ -246,6 +279,7 @@ export const useAppStore = create<AppState>()(
             alertas: get().alertas,
             expedientes: get().expedientes,
             cumplimientoHrAdmin: get().cumplimientoHrAdmin,
+            cumplimientoHrAdminPorProyecto: get().cumplimientoHrAdminPorProyecto,
             diasAnticipacionAlerta: get().diasAnticipacionAlerta,
             fuenteGoogleSheetsUrl: get().fuenteGoogleSheetsUrl,
           }),
@@ -855,6 +889,10 @@ export const useAppStore = create<AppState>()(
           proyectos: [...s.proyectos, { ...p, id, creadoEn: new Date().toISOString() }],
           fases: [...s.fases, ...plan.fases],
           tareas: [...s.tareas, ...plan.tareas],
+          cumplimientoHrAdminPorProyecto: {
+            ...s.cumplimientoHrAdminPorProyecto,
+            [id]: CUMPLIMIENTO_HR_ADMIN_SEED.map((item) => ({ ...item })),
+          },
         }));
         get().recalcularAlertas();
         guardarRemoto(get(), 'crear_proyecto');
@@ -873,6 +911,9 @@ export const useAppStore = create<AppState>()(
           fases: s.fases.filter((f) => f.proyectoId !== id),
           tareas: s.tareas.filter((t) => t.proyectoId !== id),
           alertas: s.alertas.filter((a) => a.proyectoId !== id),
+          cumplimientoHrAdminPorProyecto: Object.fromEntries(
+            Object.entries(s.cumplimientoHrAdminPorProyecto).filter(([proyectoId]) => proyectoId !== id),
+          ),
         }));
         guardarRemoto(get(), 'eliminar_proyecto');
       },
@@ -1026,26 +1067,37 @@ export const useAppStore = create<AppState>()(
       },
 
       actualizarCumplimientoHrAdmin: (modulo, cambios) => {
-        set((s) => ({
-          cumplimientoHrAdmin: s.cumplimientoHrAdmin.map((item) => {
-            if (item.modulo !== modulo) return item;
-
-            const estado = cambios.estado ?? item.estado;
-            return {
-              ...item,
-              ...cambios,
-              estado,
-              responsable:
-                estado === 'concluido'
-                  ? null
-                  : cambios.responsable !== undefined
-                    ? cambios.responsable
-                    : item.responsable,
-              observacion: (cambios.observacion ?? item.observacion ?? '').trim(),
-            };
-          }),
-        }));
+        set((s) => {
+          const filas = actualizarFilaHrAdmin(s.cumplimientoHrAdmin, modulo, cambios);
+          const proyectoId = s.proyectos[0]?.id;
+          return {
+            cumplimientoHrAdmin: filas,
+            ...(proyectoId
+              ? {
+                  cumplimientoHrAdminPorProyecto: {
+                    ...s.cumplimientoHrAdminPorProyecto,
+                    [proyectoId]: filas,
+                  },
+                }
+              : {}),
+          };
+        });
         guardarRemoto(get(), 'actualizar_cumplimiento_hr_admin');
+      },
+
+      actualizarCumplimientoHrAdminProyecto: (proyectoId, modulo, cambios) => {
+        set((s) => {
+          const filasActuales = s.cumplimientoHrAdminPorProyecto[proyectoId] ?? CUMPLIMIENTO_HR_ADMIN_SEED;
+          const filas = actualizarFilaHrAdmin(filasActuales, modulo, cambios);
+          return {
+            cumplimientoHrAdminPorProyecto: {
+              ...s.cumplimientoHrAdminPorProyecto,
+              [proyectoId]: filas,
+            },
+            cumplimientoHrAdmin: s.proyectos[0]?.id === proyectoId ? filas : s.cumplimientoHrAdmin,
+          };
+        });
+        guardarRemoto(get(), 'actualizar_cumplimiento_hr_admin_proyecto');
       },
 
       recalcularAlertas: () => {
@@ -1069,44 +1121,13 @@ export const useAppStore = create<AppState>()(
           const diasDif = differenceInDays(finPlan, hoy);
           const diasInicio = differenceInDays(inicioPlan, hoy);
 
-          if (diasDif < 0) {
-            agregarAlerta({
-              id: `alerta-vencida-${tarea.id}`,
-              proyectoId: tarea.proyectoId,
-              tareaId: tarea.id,
-              tipo: 'vencida',
-              mensaje: `Incumplimiento Gantt: tarea vencida hace ${Math.abs(diasDif)} día(s): ${tarea.nombre}`,
-            });
-          } else if (diasDif <= diasAnticipacionAlerta) {
-            agregarAlerta({
-              id: `alerta-proxima-${tarea.id}`,
-              proyectoId: tarea.proyectoId,
-              tareaId: tarea.id,
-              tipo: 'proxima_vencer',
-              mensaje: `Riesgo Gantt: vence en ${diasDif} día(s): ${tarea.nombre}`,
-            });
-          }
+          const cambiosResponsable = (tarea.historial ?? []).filter((item) => item.campo === 'responsable');
+          const ultimoCambioResponsable = cambiosResponsable[cambiosResponsable.length - 1];
+          const responsableActual = normalizarResponsable(tarea.responsable);
+          const responsableNuevo = normalizarResponsable(ultimoCambioResponsable?.valorNuevo);
+          const responsableAnterior = normalizarResponsable(ultimoCambioResponsable?.valorAnterior);
 
-          if (tarea.estado === 'pendiente' && diasInicio < 0) {
-            agregarAlerta({
-              id: `alerta-inicio-plan-${tarea.id}`,
-              proyectoId: tarea.proyectoId,
-              tareaId: tarea.id,
-              tipo: 'en_riesgo',
-              mensaje: `Riesgo Gantt: debio iniciar hace ${Math.abs(diasInicio)} día(s): ${tarea.nombre}`,
-            });
-          }
-
-          if (tarea.estado === 'bloqueada') {
-            agregarAlerta({
-              id: `alerta-bloqueada-${tarea.id}`,
-              proyectoId: tarea.proyectoId,
-              tareaId: tarea.id,
-              tipo: 'bloqueada',
-              mensaje: `Incumplimiento Gantt: tarea bloqueada: ${tarea.nombre}`,
-            });
-          }
-
+          // One current state per task keeps the inbox and its counters honest.
           if (tarea.reasignacionPendiente?.estado === 'pendiente') {
             agregarAlerta({
               id: `alerta-solicitud-reasignacion-${tarea.id}-${tarea.reasignacionPendiente.solicitadaEn}`,
@@ -1116,9 +1137,7 @@ export const useAppStore = create<AppState>()(
               mensaje: `${tarea.reasignacionPendiente.solicitante} quiere reasignarte: ${tarea.nombre}`,
               destinatario: tarea.reasignacionPendiente.destinatario,
             });
-          }
-
-          if (tarea.reasignacionPendiente?.estado === 'rechazada') {
+          } else if (tarea.reasignacionPendiente?.estado === 'rechazada') {
             agregarAlerta({
               id: `alerta-reasignacion-rechazada-${tarea.id}-${tarea.reasignacionPendiente.respondidaEn ?? tarea.reasignacionPendiente.solicitadaEn}`,
               proyectoId: tarea.proyectoId,
@@ -1127,15 +1146,39 @@ export const useAppStore = create<AppState>()(
               mensaje: `${tarea.reasignacionPendiente.destinatario} rechazó la reasignación de ${tarea.nombre}: ${tarea.reasignacionPendiente.respuesta || 'Sin motivo'}`,
               destinatario: tarea.reasignacionPendiente.solicitante,
             });
-          }
-
-          const cambiosResponsable = (tarea.historial ?? []).filter((item) => item.campo === 'responsable');
-          const ultimoCambioResponsable = cambiosResponsable[cambiosResponsable.length - 1];
-          const responsableActual = normalizarResponsable(tarea.responsable);
-          const responsableNuevo = normalizarResponsable(ultimoCambioResponsable?.valorNuevo);
-          const responsableAnterior = normalizarResponsable(ultimoCambioResponsable?.valorAnterior);
-
-          if (ultimoCambioResponsable && responsableActual && responsableActual === responsableNuevo && responsableNuevo !== responsableAnterior) {
+          } else if (tarea.estado === 'bloqueada') {
+            agregarAlerta({
+              id: `alerta-bloqueada-${tarea.id}`,
+              proyectoId: tarea.proyectoId,
+              tareaId: tarea.id,
+              tipo: 'bloqueada',
+              mensaje: `Tarea bloqueada: ${tarea.nombre}`,
+            });
+          } else if (diasDif < 0) {
+            agregarAlerta({
+              id: `alerta-vencida-${tarea.id}`,
+              proyectoId: tarea.proyectoId,
+              tareaId: tarea.id,
+              tipo: 'vencida',
+              mensaje: `Tarea vencida hace ${Math.abs(diasDif)} día(s): ${tarea.nombre}`,
+            });
+          } else if (diasDif <= diasAnticipacionAlerta) {
+            agregarAlerta({
+              id: `alerta-proxima-${tarea.id}`,
+              proyectoId: tarea.proyectoId,
+              tareaId: tarea.id,
+              tipo: 'proxima_vencer',
+              mensaje: `Vence en ${diasDif} día(s): ${tarea.nombre}`,
+            });
+          } else if (tarea.estado === 'pendiente' && diasInicio < 0) {
+            agregarAlerta({
+              id: `alerta-inicio-plan-${tarea.id}`,
+              proyectoId: tarea.proyectoId,
+              tareaId: tarea.id,
+              tipo: 'en_riesgo',
+              mensaje: `Inicio atrasado hace ${Math.abs(diasInicio)} día(s): ${tarea.nombre}`,
+            });
+          } else if (ultimoCambioResponsable && responsableActual && responsableActual === responsableNuevo && responsableNuevo !== responsableAnterior) {
             agregarAlerta({
               id: `alerta-reasignada-${tarea.id}-${ultimoCambioResponsable.fecha}`,
               proyectoId: tarea.proyectoId,
@@ -1147,7 +1190,7 @@ export const useAppStore = create<AppState>()(
           }
         });
 
-        set({ alertas: nuevasAlertas });
+        set({ alertas: consolidarAlertas(nuevasAlertas) });
       },
     }),
     {
@@ -1170,6 +1213,7 @@ export const useAppStore = create<AppState>()(
             alertas: currentState.alertas,
             expedientes: currentState.expedientes,
             cumplimientoHrAdmin: currentState.cumplimientoHrAdmin,
+            cumplimientoHrAdminPorProyecto: currentState.cumplimientoHrAdminPorProyecto,
             diasAnticipacionAlerta: currentState.diasAnticipacionAlerta,
             fuenteGoogleSheetsUrl: currentState.fuenteGoogleSheetsUrl,
           }),
@@ -1186,6 +1230,7 @@ export const useAppStore = create<AppState>()(
         alertas: state.alertas,
         expedientes: state.expedientes,
         cumplimientoHrAdmin: state.cumplimientoHrAdmin,
+        cumplimientoHrAdminPorProyecto: state.cumplimientoHrAdminPorProyecto,
         diasAnticipacionAlerta: state.diasAnticipacionAlerta,
         fuenteGoogleSheetsUrl: state.fuenteGoogleSheetsUrl,
       }),
