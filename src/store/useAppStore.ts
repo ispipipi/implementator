@@ -33,6 +33,7 @@ import {
   sanitizarUsuario,
   asegurarSemillaOla1,
 } from '../utils/dataIntegrity';
+import { sincronizarCronogramaFinning } from '../utils/finningSchedule';
 import { responsableAsignadoAUsuario, normalizarResponsable } from '../utils/assignee';
 import { enviarNotificacionTarea } from '../services/taskNotifications';
 
@@ -138,10 +139,11 @@ const sanitizarSlicesCompartidos = (
     fallback.fases,
     fallback.tareas,
   );
-  const proyectos = baseOla1.proyectos.map(sanitizarProyecto);
-  const fases = baseOla1.fases.map((fase, index) => sanitizarFase(fase, index));
+  const baseFinning = sincronizarCronogramaFinning(baseOla1.proyectos, baseOla1.fases, baseOla1.tareas);
+  const proyectos = baseFinning.proyectos.map(sanitizarProyecto);
+  const fases = baseFinning.fases.map((fase, index) => sanitizarFase(fase, index));
   const personas = [...perfiles.filter((perfil) => perfil.activo !== false), ...ejecutivos];
-  const tareas = baseOla1.tareas.map((tarea) => sanitizarTarea(tarea, personas));
+  const tareas = baseFinning.tareas.map((tarea) => sanitizarTarea(tarea, personas));
   const alertas = consolidarAlertas(sanitizarAlertas(estado.alertas ?? fallback.alertas, tareas, proyectos, personas));
   const expedientes = sanitizarExpedientes(estado.expedientes ?? fallback.expedientes);
   const cumplimientoHrAdmin = sanitizarCumplimientoHrAdmin(estado.cumplimientoHrAdmin ?? fallback.cumplimientoHrAdmin);
@@ -164,6 +166,7 @@ const sanitizarSlicesCompartidos = (
     cumplimientoHrAdminPorProyecto,
     diasAnticipacionAlerta: estado.diasAnticipacionAlerta ?? fallback.diasAnticipacionAlerta,
     fuenteGoogleSheetsUrl: estado.fuenteGoogleSheetsUrl ?? fallback.fuenteGoogleSheetsUrl,
+    finningActualizado: baseFinning.cambioAplicado,
   };
 };
 
@@ -279,9 +282,8 @@ export const useAppStore = create<AppState>()(
         guardarRemoto(get(), 'fuente_google_sheets');
       },
 
-      aplicarEstadoCompartido: (estado) =>
-        set({
-          ...sanitizarSlicesCompartidos(estado, {
+      aplicarEstadoCompartido: (estado) => {
+        const estadoSanitizado = sanitizarSlicesCompartidos(estado, {
             perfiles: get().perfiles,
             perfilesAcceso: get().perfilesAcceso,
             ejecutivos: get().ejecutivos,
@@ -294,9 +296,14 @@ export const useAppStore = create<AppState>()(
             cumplimientoHrAdminPorProyecto: get().cumplimientoHrAdminPorProyecto,
             diasAnticipacionAlerta: get().diasAnticipacionAlerta,
             fuenteGoogleSheetsUrl: get().fuenteGoogleSheetsUrl,
-          }),
+        });
+        const { finningActualizado, ...slices } = estadoSanitizado;
+        set({
+          ...slices,
           sincronizadoRemotoEn: new Date().toISOString(),
-        }),
+        });
+        if (finningActualizado) guardarRemoto(get(), 'sincronizar_cronograma_finning');
+      },
 
       crearPerfil: (perfil) => {
         set((s) => ({ perfiles: [...s.perfiles, { ...perfil, id: makeId('perfil') }] }));
@@ -1212,23 +1219,25 @@ export const useAppStore = create<AppState>()(
         const persisted = persistedState as Partial<AppState> | undefined;
         if (!persisted) return currentState;
         const { tema: _tema, ...persistedWithoutTheme } = persisted;
+        const estadoSanitizado = sanitizarSlicesCompartidos(persistedWithoutTheme, {
+          perfiles: currentState.perfiles,
+          perfilesAcceso: currentState.perfilesAcceso,
+          ejecutivos: currentState.ejecutivos,
+          proyectos: currentState.proyectos,
+          fases: currentState.fases,
+          tareas: currentState.tareas,
+          alertas: currentState.alertas,
+          expedientes: currentState.expedientes,
+          cumplimientoHrAdmin: currentState.cumplimientoHrAdmin,
+          cumplimientoHrAdminPorProyecto: currentState.cumplimientoHrAdminPorProyecto,
+          diasAnticipacionAlerta: currentState.diasAnticipacionAlerta,
+          fuenteGoogleSheetsUrl: currentState.fuenteGoogleSheetsUrl,
+        });
+        const { finningActualizado: _finningActualizado, ...slicesSanitizados } = estadoSanitizado;
         return {
           ...currentState,
           ...persistedWithoutTheme,
-          ...sanitizarSlicesCompartidos(persistedWithoutTheme, {
-            perfiles: currentState.perfiles,
-            perfilesAcceso: currentState.perfilesAcceso,
-            ejecutivos: currentState.ejecutivos,
-            proyectos: currentState.proyectos,
-            fases: currentState.fases,
-            tareas: currentState.tareas,
-            alertas: currentState.alertas,
-            expedientes: currentState.expedientes,
-            cumplimientoHrAdmin: currentState.cumplimientoHrAdmin,
-            cumplimientoHrAdminPorProyecto: currentState.cumplimientoHrAdminPorProyecto,
-            diasAnticipacionAlerta: currentState.diasAnticipacionAlerta,
-            fuenteGoogleSheetsUrl: currentState.fuenteGoogleSheetsUrl,
-          }),
+          ...slicesSanitizados,
         };
       },
       partialize: (state) => ({
