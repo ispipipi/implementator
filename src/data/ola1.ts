@@ -53,10 +53,10 @@ const fasesParalelo: Fase[] = [
     id: idFase('PF26'),
     proyectoId: OLA_1_ID,
     codigo: 'PF26',
-    nombre: 'Paralelo (frío) · Septiembre 26',
+    nombre: 'Paralelo (frío) · 30 sep - 14 oct 26',
     orden: 6,
-    fechaInicioPlan: '2026-09-01',
-    fechaFinPlan: '2026-09-30',
+    fechaInicioPlan: '2026-09-30',
+    fechaFinPlan: '2026-10-14',
   },
   {
     id: idFase('PC26'),
@@ -84,14 +84,18 @@ const faseOlaPorCodigo = new Map(OLA_1_FASES.map((fase) => [fase.codigo, fase]))
 const tareasParaleloFuente = GANTT_FRUTICOLA_TAREAS.filter((tarea) => tarea.faseId === faseParaleloFuente?.id);
 const tareaGoLiveFuente = GANTT_FRUTICOLA_TAREAS.find((tarea) => tarea.faseId === faseGoLiveFuente?.id);
 
-const desplazarTareaParalelo = (tarea: Tarea, fechaInicio: string) => {
+const desplazarTareaParalelo = (tarea: Tarea, faseDestino: Fase) => {
   const inicioFuente = faseParaleloFuente?.fechaInicioPlan ?? tarea.fechaInicioPlan;
+  const finFuente = faseParaleloFuente?.fechaFinPlan ?? tarea.fechaFinPlan;
+  const duracionFuente = Math.max(1, differenceInCalendarDays(parseISO(finFuente), parseISO(inicioFuente)));
+  const duracionDestino = Math.max(1, differenceInCalendarDays(parseISO(faseDestino.fechaFinPlan), parseISO(faseDestino.fechaInicioPlan)));
+  const escala = Math.min(1, duracionDestino / duracionFuente);
   const offsetInicio = differenceInCalendarDays(parseISO(tarea.fechaInicioPlan), parseISO(inicioFuente));
   const offsetFin = differenceInCalendarDays(parseISO(tarea.fechaFinPlan), parseISO(inicioFuente));
 
   return {
-    fechaInicioPlan: format(addDays(parseISO(fechaInicio), offsetInicio), 'yyyy-MM-dd'),
-    fechaFinPlan: format(addDays(parseISO(fechaInicio), offsetFin), 'yyyy-MM-dd'),
+    fechaInicioPlan: format(addDays(parseISO(faseDestino.fechaInicioPlan), Math.round(offsetInicio * escala)), 'yyyy-MM-dd'),
+    fechaFinPlan: format(addDays(parseISO(faseDestino.fechaInicioPlan), Math.round(offsetFin * escala)), 'yyyy-MM-dd'),
   };
 };
 
@@ -140,7 +144,7 @@ const construirTareasEmpresa = (empresa: EmpresaProyecto) => {
       tarea,
       fase.id,
       `${prefijo}-${tarea.id.replace('agrichile-gantt-', '')}`,
-      desplazarTareaParalelo(tarea, fase.fechaInicioPlan),
+      desplazarTareaParalelo(tarea, fase),
     ));
 
   const tareasGoLive = tareaGoLiveFuente && faseOlaPorCodigo.get('GL26')
