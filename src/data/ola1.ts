@@ -83,6 +83,9 @@ export const OLA_1_FASES: Fase[] = [...fasesConservadas, ...fasesParalelo];
 const faseOlaPorCodigo = new Map(OLA_1_FASES.map((fase) => [fase.codigo, fase]));
 const tareasParaleloFuente = GANTT_FRUTICOLA_TAREAS.filter((tarea) => tarea.faseId === faseParaleloFuente?.id);
 const tareaGoLiveFuente = GANTT_FRUTICOLA_TAREAS.find((tarea) => tarea.faseId === faseGoLiveFuente?.id);
+const tareaMigracionFuente = GANTT_FRUTICOLA_TAREAS.find(
+  (tarea) => tarea.faseId === fasesFuentePorCodigo.get('MVAR3')?.id && tarea.nombre === 'Carga de trabajadores activos',
+);
 
 const desplazarTareaParalelo = (tarea: Tarea, faseDestino: Fase) => {
   const inicioFuente = faseParaleloFuente?.fechaInicioPlan ?? tarea.fechaInicioPlan;
@@ -123,7 +126,7 @@ const construirTareasEmpresa = (empresa: EmpresaProyecto) => {
   const tareasBase = GANTT_FRUTICOLA_TAREAS
     .filter((tarea) => {
       const faseFuente = GANTT_FRUTICOLA_FASES.find((fase) => fase.id === tarea.faseId);
-      return faseFuente && codigosFasesConservadas.includes(faseFuente.codigo);
+      return faseFuente && codigosFasesConservadas.includes(faseFuente.codigo) && faseFuente.codigo !== 'MVAR3';
     })
     .map((tarea) => {
       const faseFuente = GANTT_FRUTICOLA_FASES.find((fase) => fase.id === tarea.faseId);
@@ -137,6 +140,50 @@ const construirTareasEmpresa = (empresa: EmpresaProyecto) => {
         tarea.id.replace('agrichile-gantt-', ''),
       );
     });
+
+  const faseMigracion = faseOlaPorCodigo.get('MVAR3');
+  const tareasMigracion = tareaMigracionFuente && faseMigracion
+    ? [
+        {
+          nombre: 'Carga de Cargos',
+          id: 'carga-cargos',
+          fechaInicioPlan: '2026-06-03',
+          fechaFinPlan: '2026-06-10',
+        },
+        {
+          nombre: 'Carga de Centros de estructura',
+          id: 'carga-centros-estructura',
+          fechaInicioPlan: '2026-06-11',
+          fechaFinPlan: '2026-06-18',
+        },
+        {
+          nombre: 'Carga de empleados',
+          id: 'carga-empleados',
+          fechaInicioPlan: '2026-06-19',
+          fechaFinPlan: '2026-06-26',
+        },
+      ].map((definicion) => {
+        const tarea = construirTarea(
+          empresa,
+          tareaMigracionFuente,
+          faseMigracion.id,
+          definicion.id,
+          {
+            fechaInicioPlan: definicion.fechaInicioPlan,
+            fechaFinPlan: definicion.fechaFinPlan,
+          },
+        );
+
+        return {
+          ...tarea,
+          nombre: definicion.nombre,
+          estado: 'completada' as const,
+          fechaInicioReal: definicion.fechaInicioPlan,
+          fechaFinReal: definicion.fechaFinPlan,
+          observacion: 'Carga completada.',
+        };
+      })
+    : [];
 
   const construirParalelo = (fase: Fase, prefijo: string) => tareasParaleloFuente.map((tarea) =>
     construirTarea(
@@ -162,6 +209,7 @@ const construirTareasEmpresa = (empresa: EmpresaProyecto) => {
 
   return [
     ...tareasBase,
+    ...tareasMigracion,
     ...construirParalelo(faseOlaPorCodigo.get('PF26')!, 'paralelo-frio'),
     ...construirParalelo(faseOlaPorCodigo.get('PC26')!, 'paralelo-caliente'),
     ...tareasGoLive,
