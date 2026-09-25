@@ -127,13 +127,29 @@ export const asegurarSemillaOla1 = (
   if (proyectoExistente) {
     const empresasPermitidas = new Set((proyectoSemilla.empresas ?? []).map((empresa) => empresa.id));
     const empresasActuales = proyectoExistente.empresas?.filter((empresa) => empresasPermitidas.has(empresa.id));
-    const empresas = empresasActuales?.length ? empresasActuales : proyectoSemilla.empresas;
+    const empresas = empresasActuales?.length ? empresasActuales : proyectoSemilla.empresas ?? [];
+    const tareasOla = tareas.filter((tarea) => tarea.proyectoId === OLA_1_ID && (!tarea.empresaId || empresasPermitidas.has(tarea.empresaId)));
+    const tareasPorEmpresa = tareasSemilla.filter((tarea) => tarea.proyectoId === OLA_1_ID).length / Math.max(empresas.length, 1);
+    const tareasOlaReparadas = tareasOla.map((tarea, index) => {
+      if (tarea.empresaId && empresasPermitidas.has(tarea.empresaId)) return tarea;
+
+      const empresaPorId = empresas.find((empresa) => tarea.id.includes(empresa.id));
+      const empresaPorBloque = Number.isInteger(tareasPorEmpresa) && tareasPorEmpresa > 0
+        ? empresas[Math.floor(index / tareasPorEmpresa)]
+        : undefined;
+
+      return {
+        ...tarea,
+        empresaId: empresaPorId?.id ?? empresaPorBloque?.id,
+      };
+    });
     const proyectosLimpios = proyectos.map((proyecto) =>
       proyecto.id === OLA_1_ID ? { ...proyecto, empresas } : proyecto,
     );
-    const tareasLimpias = tareas.filter(
-      (tarea) => tarea.proyectoId !== OLA_1_ID || !tarea.empresaId || empresasPermitidas.has(tarea.empresaId),
-    );
+    const tareasLimpias = [
+      ...tareas.filter((tarea) => tarea.proyectoId !== OLA_1_ID),
+      ...tareasOlaReparadas,
+    ];
     return { proyectos: proyectosLimpios, fases, tareas: tareasLimpias };
   }
 

@@ -49,7 +49,8 @@ export function LoginView() {
           const debePersistirMigracionOla1 =
             !proyectoRemoto ||
             proyectoRemoto.empresas?.length !== proyectoActual?.empresas?.length ||
-            tareasRemotas.length !== tareasActuales.length;
+            tareasRemotas.length !== tareasActuales.length ||
+            tareasRemotas.some((tarea) => !tarea.empresaId);
 
           if (debePersistirMigracionOla1) {
             await saveWorkspaceState(estadoActual, 'migracion_ola_1_empresas');
