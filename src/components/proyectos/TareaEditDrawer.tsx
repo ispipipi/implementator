@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRightLeft, Ban, CalendarDays, CheckCircle2, CircleDashed, Clock3, Flag, Lock, MessageCirclePlus, MessageSquare, OctagonAlert, PlayCircle, Save, Send, Siren, UserRound, UserPlus, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, Ban, Building2, CalendarDays, CheckCircle2, CircleDashed, Clock3, Flag, Lock, MessageCirclePlus, MessageSquare, OctagonAlert, PlayCircle, Save, Send, Siren, UserRound, UserPlus, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Drawer } from '../ui/Drawer';
 import { EstadoTarea, Tarea } from '../../types';
@@ -135,6 +135,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
 
   const tareaActual = tarea ? tareas.find((item) => item.id === tarea.id) ?? tarea : null;
   const proyecto = tareaActual ? proyectos.find((p) => p.id === tareaActual.proyectoId) : null;
+  const empresa = proyecto?.empresas?.find((item) => item.id === tareaActual?.empresaId);
   const fase = tareaActual ? fases.find((f) => f.id === tareaActual.faseId) : null;
   const vencida = tareaActual ? tareaEstaVencida(tareaActual) : false;
   const overdueDays = tareaActual ? diasVencida(tareaActual) : 0;
@@ -346,6 +347,12 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
             <h3 className="text-xl font-semibold leading-tight text-white">{tareaActual?.nombre}</h3>
             {tareaActual?.descripcion ? <p className="mt-1 break-words text-sm text-slate-400">{tareaActual.descripcion}</p> : null}
             <p className="mt-2 truncate text-xs text-slate-500">{proyecto?.nombre ?? 'Proyecto'}</p>
+            {empresa ? (
+              <p className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md bg-emerald-400/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-200">
+                <Building2 className="h-3.5 w-3.5 shrink-0" />
+                Empresa: <span className="truncate">{empresa.nombre}</span>
+              </p>
+            ) : null}
 
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
