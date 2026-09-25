@@ -120,12 +120,22 @@ export const asegurarSemillaOla1 = (
   fasesSemilla: Fase[],
   tareasSemilla: Tarea[],
 ) => {
-  if (proyectos.some((proyecto) => proyecto.id === OLA_1_ID)) {
-    return { proyectos, fases, tareas };
-  }
-
   const proyectoSemilla = proyectosSemilla.find((proyecto) => proyecto.id === OLA_1_ID);
   if (!proyectoSemilla) return { proyectos, fases, tareas };
+
+  const proyectoExistente = proyectos.find((proyecto) => proyecto.id === OLA_1_ID);
+  if (proyectoExistente) {
+    const empresasPermitidas = new Set((proyectoSemilla.empresas ?? []).map((empresa) => empresa.id));
+    const empresasActuales = proyectoExistente.empresas?.filter((empresa) => empresasPermitidas.has(empresa.id));
+    const empresas = empresasActuales?.length ? empresasActuales : proyectoSemilla.empresas;
+    const proyectosLimpios = proyectos.map((proyecto) =>
+      proyecto.id === OLA_1_ID ? { ...proyecto, empresas } : proyecto,
+    );
+    const tareasLimpias = tareas.filter(
+      (tarea) => tarea.proyectoId !== OLA_1_ID || !tarea.empresaId || empresasPermitidas.has(tarea.empresaId),
+    );
+    return { proyectos: proyectosLimpios, fases, tareas: tareasLimpias };
+  }
 
   return {
     proyectos: [...proyectos, proyectoSemilla],

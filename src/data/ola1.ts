@@ -17,10 +17,10 @@ const nombresEmpresas = [
   'Grupo Patria',
 ];
 
-export const OLA_1_EMPRESAS: EmpresaProyecto[] = Array.from({ length: 20 }, (_, index) => ({
+export const OLA_1_EMPRESAS: EmpresaProyecto[] = nombresEmpresas.map((nombre, index) => ({
   id: `ola-1-empresa-${String(index + 1).padStart(2, '0')}`,
-  nombre: nombresEmpresas[index] ?? `Pendiente de nombre ${String(index + 1).padStart(2, '0')}`,
-  estado: index < nombresEmpresas.length ? 'confirmada' : 'pendiente_nombre',
+  nombre,
+  estado: 'confirmada',
 }));
 
 const fechaBase = parseISO(GANTT_FRUTICOLA_SOURCE.fechaInicio);
@@ -69,6 +69,6 @@ export const PROYECTO_OLA_1: Proyecto = {
   fechaInicio: OLA_1_FECHA_INICIO,
   fechaGoLive: fechaFinOla,
   estado: 'activo',
-  observaciones: 'Ola de implementación para 20 empresas. Nueve nombres confirmados y once pendientes de completar.',
+  observaciones: 'Ola de implementación para las nueve empresas informadas.',
   creadoEn: '2026-09-25T12:00:00Z',
 };
