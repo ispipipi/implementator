@@ -86,6 +86,24 @@ const tareaGoLiveFuente = GANTT_FRUTICOLA_TAREAS.find((tarea) => tarea.faseId ==
 const tareaMigracionFuente = GANTT_FRUTICOLA_TAREAS.find(
   (tarea) => tarea.faseId === fasesFuentePorCodigo.get('MVAR3')?.id && tarea.nombre === 'Carga de trabajadores activos',
 );
+const tareasOtrasImplementaciones = new Map<string, Pick<Tarea, 'fechaInicioPlan' | 'fechaFinPlan'>>([
+  ['Hito: Entrega plan de cuentas contables y formatos', {
+    fechaInicioPlan: '2026-10-01',
+    fechaFinPlan: '2026-10-03',
+  }],
+  ['Definición y configuración de centralización contable', {
+    fechaInicioPlan: '2026-10-01',
+    fechaFinPlan: '2026-10-16',
+  }],
+  ['Configurar y Crear reportes según solicitud del cliente', {
+    fechaInicioPlan: '2026-10-05',
+    fechaFinPlan: '2026-10-23',
+  }],
+  ['Parametrizacion archivos Banco', {
+    fechaInicioPlan: '2026-10-26',
+    fechaFinPlan: '2026-10-30',
+  }],
+]);
 
 const desplazarTareaParalelo = (tarea: Tarea, faseDestino: Fase) => {
   const inicioFuente = faseParaleloFuente?.fechaInicioPlan ?? tarea.fechaInicioPlan;
@@ -126,18 +144,27 @@ const construirTareasEmpresa = (empresa: EmpresaProyecto) => {
   const tareasBase = GANTT_FRUTICOLA_TAREAS
     .filter((tarea) => {
       const faseFuente = GANTT_FRUTICOLA_FASES.find((fase) => fase.id === tarea.faseId);
-      return faseFuente && codigosFasesConservadas.includes(faseFuente.codigo) && faseFuente.codigo !== 'MVAR3';
+      if (!faseFuente || !codigosFasesConservadas.includes(faseFuente.codigo) || faseFuente.codigo === 'MVAR3') {
+        return false;
+      }
+
+      return faseFuente.codigo !== 'OIYC10' || tareasOtrasImplementaciones.has(tarea.nombre);
     })
     .map((tarea) => {
       const faseFuente = GANTT_FRUTICOLA_FASES.find((fase) => fase.id === tarea.faseId);
       const faseDestino = faseFuente ? faseOlaPorCodigo.get(faseFuente.codigo) : undefined;
       if (!faseDestino) throw new Error(`No se encontró fase Ola 1 para ${faseFuente?.codigo ?? tarea.faseId}`);
 
+      const fechasOtrasImplementaciones = faseFuente?.codigo === 'OIYC10'
+        ? tareasOtrasImplementaciones.get(tarea.nombre)
+        : undefined;
+
       return construirTarea(
         empresa,
         tarea,
         faseDestino.id,
         tarea.id.replace('agrichile-gantt-', ''),
+        fechasOtrasImplementaciones,
       );
     });
 
