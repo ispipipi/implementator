@@ -4,8 +4,9 @@ import { LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { UsuarioActivo } from '../../types';
 import { auth, firebaseMissingMessage, firebaseReady } from '../../services/firebaseClient';
-import { ensureWorkspaceState, loadWorkspaceState } from '../../services/remoteState';
+import { ensureWorkspaceState, loadWorkspaceState, saveWorkspaceState } from '../../services/remoteState';
 import { enviarRecuperacionPassword } from '../../services/userAccess';
+import { OLA_1_ID } from '../../data/ola1';
 import { GlassCard } from '../ui/GlassCard';
 
 const normalizarEmail = (email?: string | null) => (email ?? '').trim().toLowerCase();
@@ -38,7 +39,22 @@ export function LoginView() {
       try {
         await ensureWorkspaceState(useAppStore.getState());
         const estadoRemoto = await loadWorkspaceState();
-        if (estadoRemoto) aplicarEstadoCompartido(estadoRemoto);
+        if (estadoRemoto) {
+          aplicarEstadoCompartido(estadoRemoto);
+          const estadoActual = useAppStore.getState();
+          const proyectoRemoto = estadoRemoto.proyectos?.find((proyecto) => proyecto.id === OLA_1_ID);
+          const proyectoActual = estadoActual.proyectos.find((proyecto) => proyecto.id === OLA_1_ID);
+          const tareasRemotas = estadoRemoto.tareas?.filter((tarea) => tarea.proyectoId === OLA_1_ID) ?? [];
+          const tareasActuales = estadoActual.tareas.filter((tarea) => tarea.proyectoId === OLA_1_ID);
+          const debePersistirMigracionOla1 =
+            !proyectoRemoto ||
+            proyectoRemoto.empresas?.length !== proyectoActual?.empresas?.length ||
+            tareasRemotas.length !== tareasActuales.length;
+
+          if (debePersistirMigracionOla1) {
+            await saveWorkspaceState(estadoActual, 'migracion_ola_1_empresas');
+          }
+        }
 
         const emailUsuario = normalizarEmail(firebaseUser.email);
         const perfilesDisponibles = estadoRemoto?.perfiles ?? useAppStore.getState().perfiles;
