@@ -1,6 +1,7 @@
 import { Alerta, CumplimientoHrAdminItem, Ejecutivo, ExpedienteProyecto, Fase, Proyecto, Tarea, UsuarioActivo } from '../types';
 import { normalizarResponsable } from './assignee';
 import { CUMPLIMIENTO_HR_ADMIN_SEED } from '../data/cumplimientoHrAdmin';
+import { OLA_1_ID } from '../data/ola1';
 
 type Persona = Pick<UsuarioActivo, 'nombre' | 'iniciales'> | Pick<Ejecutivo, 'nombre' | 'iniciales'>;
 
@@ -87,6 +88,11 @@ export const sanitizarEjecutivo = (ejecutivo: Ejecutivo): Ejecutivo => ({
 export const sanitizarProyecto = (proyecto: Proyecto): Proyecto => ({
   ...proyecto,
   nombre: trimOrFallback(proyecto.nombre, 'Proyecto sin nombre'),
+  empresas: proyecto.empresas?.map((empresa, index) => ({
+    id: trimOrFallback(empresa.id, `empresa-${index + 1}`),
+    nombre: trimOrFallback(empresa.nombre, `Empresa ${index + 1}`),
+    estado: empresa.estado === 'confirmada' ? 'confirmada' : 'pendiente_nombre',
+  })),
   razonSocial: trimOrFallback(proyecto.razonSocial, proyecto.nombre),
   representanteLegal: trimOrFallback(proyecto.representanteLegal, 'No informado'),
   direccion: trimOrFallback(proyecto.direccion, 'No informada'),
@@ -94,6 +100,39 @@ export const sanitizarProyecto = (proyecto: Proyecto): Proyecto => ({
   mutualidad: trimOrFallback(proyecto.mutualidad, 'No informada'),
   observaciones: proyecto.observaciones?.trim() ?? '',
 });
+
+const completarSemillaOla1 = <T extends { id: string }>(
+  registros: T[],
+  registrosSemilla: T[],
+) => {
+  const ids = new Set(registros.map((registro) => registro.id));
+  return [
+    ...registros,
+    ...registrosSemilla.filter((registro) => !ids.has(registro.id)),
+  ];
+};
+
+export const asegurarSemillaOla1 = (
+  proyectos: Proyecto[],
+  fases: Fase[],
+  tareas: Tarea[],
+  proyectosSemilla: Proyecto[],
+  fasesSemilla: Fase[],
+  tareasSemilla: Tarea[],
+) => {
+  if (proyectos.some((proyecto) => proyecto.id === OLA_1_ID)) {
+    return { proyectos, fases, tareas };
+  }
+
+  const proyectoSemilla = proyectosSemilla.find((proyecto) => proyecto.id === OLA_1_ID);
+  if (!proyectoSemilla) return { proyectos, fases, tareas };
+
+  return {
+    proyectos: [...proyectos, proyectoSemilla],
+    fases: completarSemillaOla1(fases, fasesSemilla.filter((fase) => fase.proyectoId === OLA_1_ID)),
+    tareas: completarSemillaOla1(tareas, tareasSemilla.filter((tarea) => tarea.proyectoId === OLA_1_ID)),
+  };
+};
 
 export const sanitizarFase = (fase: Fase, index?: number): Fase => {
   const inicio = normalizeIsoDate(fase.fechaInicioPlan) ?? new Date().toISOString().slice(0, 10);

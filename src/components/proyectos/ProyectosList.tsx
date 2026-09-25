@@ -43,7 +43,7 @@ export function ProyectosList() {
                   <span className="block truncate text-lg font-semibold text-white">{proyecto.nombre}</span>
                   <span className="mt-1 inline-flex items-center gap-1.5 text-xs text-slate-500">
                     <CalendarDays className="h-3.5 w-3.5" />
-                    {proyecto.fechaInicio} · {proyecto.fechaGoLive}
+                    {proyecto.empresas?.length ? `${proyecto.empresas.length} empresas · ` : ''}{proyecto.fechaInicio} · {proyecto.fechaGoLive}
                   </span>
                 </span>
               </button>

@@ -31,6 +31,7 @@ import {
   sanitizarProyecto,
   sanitizarTarea,
   sanitizarUsuario,
+  asegurarSemillaOla1,
 } from '../utils/dataIntegrity';
 import { responsableAsignadoAUsuario, normalizarResponsable } from '../utils/assignee';
 import { enviarNotificacionTarea } from '../services/taskNotifications';
@@ -126,10 +127,21 @@ const sanitizarSlicesCompartidos = (
   const perfiles = asegurarPerfilesBase((estado.perfiles ?? fallback.perfiles).map(sanitizarUsuario));
   const perfilesAcceso = asegurarPerfilesAccesoBase(estado.perfilesAcceso ?? fallback.perfilesAcceso);
   const ejecutivos = (estado.ejecutivos ?? fallback.ejecutivos).map(sanitizarEjecutivo);
-  const proyectos = (estado.proyectos ?? fallback.proyectos).map(sanitizarProyecto);
-  const fases = (estado.fases ?? fallback.fases).map((fase, index) => sanitizarFase(fase, index));
+  const proyectosEntrada = (estado.proyectos ?? fallback.proyectos).map(sanitizarProyecto);
+  const fasesEntrada = estado.fases ?? fallback.fases;
+  const tareasEntrada = estado.tareas ?? fallback.tareas;
+  const baseOla1 = asegurarSemillaOla1(
+    proyectosEntrada,
+    fasesEntrada,
+    tareasEntrada,
+    fallback.proyectos,
+    fallback.fases,
+    fallback.tareas,
+  );
+  const proyectos = baseOla1.proyectos.map(sanitizarProyecto);
+  const fases = baseOla1.fases.map((fase, index) => sanitizarFase(fase, index));
   const personas = [...perfiles.filter((perfil) => perfil.activo !== false), ...ejecutivos];
-  const tareas = (estado.tareas ?? fallback.tareas).map((tarea) => sanitizarTarea(tarea, personas));
+  const tareas = baseOla1.tareas.map((tarea) => sanitizarTarea(tarea, personas));
   const alertas = consolidarAlertas(sanitizarAlertas(estado.alertas ?? fallback.alertas, tareas, proyectos, personas));
   const expedientes = sanitizarExpedientes(estado.expedientes ?? fallback.expedientes);
   const cumplimientoHrAdmin = sanitizarCumplimientoHrAdmin(estado.cumplimientoHrAdmin ?? fallback.cumplimientoHrAdmin);

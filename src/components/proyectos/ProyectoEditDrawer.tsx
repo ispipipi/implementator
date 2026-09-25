@@ -27,6 +27,7 @@ export function ProyectoEditDrawer({ proyecto, onClose }: Props) {
     fechaGoLive: '',
     estado: 'activo' as Proyecto['estado'],
     observaciones: '',
+    empresas: [] as Proyecto['empresas'],
   });
 
   useEffect(() => {
@@ -46,6 +47,7 @@ export function ProyectoEditDrawer({ proyecto, onClose }: Props) {
       fechaGoLive: proyecto.fechaGoLive,
       estado: proyecto.estado,
       observaciones: proyecto.observaciones,
+      empresas: proyecto.empresas?.map((empresa) => ({ ...empresa })),
     });
   }, [proyecto]);
 
@@ -116,6 +118,32 @@ export function ProyectoEditDrawer({ proyecto, onClose }: Props) {
             </select>
           </label>
         </div>
+
+        {form.empresas?.length ? (
+          <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+            <div className="mb-3">
+              <p className="text-sm font-semibold text-white">Empresas de la ola</p>
+              <p className="mt-1 text-xs text-slate-400">Actualiza los nombres pendientes. Cada empresa conserva su propio plan de tareas.</p>
+            </div>
+            <div className="grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+              {form.empresas.map((empresa, index) => (
+                <label key={empresa.id} className="grid gap-1 text-xs text-slate-400">
+                  Empresa {index + 1}
+                  <input
+                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                    value={empresa.nombre}
+                    onChange={(event) => setForm((s) => ({
+                      ...s,
+                      empresas: s.empresas?.map((item) => item.id === empresa.id
+                        ? { ...item, nombre: event.target.value, estado: event.target.value.trim() ? 'confirmada' : 'pendiente_nombre' }
+                        : item),
+                    }))}
+                  />
+                </label>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <label className="grid gap-2 text-sm text-slate-300">
           Observaciones

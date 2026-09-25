@@ -1,5 +1,6 @@
 import { Ejecutivo, Proyecto } from '../types';
 import { GANTT_FRUTICOLA_FASES, GANTT_FRUTICOLA_SOURCE, GANTT_FRUTICOLA_TAREAS } from './ganttFruticola';
+import { OLA_1_FASES, OLA_1_TAREAS, PROYECTO_OLA_1 } from './ola1';
 
 export const EJECUTIVOS_SEED: Ejecutivo[] = [
   {
@@ -58,7 +59,7 @@ export const PROYECTO_AGRICHILE: Proyecto = {
 
 export const SEED_DATA = {
   ejecutivos: EJECUTIVOS_SEED,
-  proyectos: [PROYECTO_AGRICHILE],
-  fases: GANTT_FRUTICOLA_FASES,
-  tareas: GANTT_FRUTICOLA_TAREAS,
+  proyectos: [PROYECTO_AGRICHILE, PROYECTO_OLA_1],
+  fases: [...GANTT_FRUTICOLA_FASES, ...OLA_1_FASES],
+  tareas: [...GANTT_FRUTICOLA_TAREAS, ...OLA_1_TAREAS],
 };

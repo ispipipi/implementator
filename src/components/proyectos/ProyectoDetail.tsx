@@ -21,18 +21,25 @@ export function ProyectoDetail() {
   const { proyectoActivoId, faseActivaId, proyectos, fases, tareas, cumplimientoHrAdminPorProyecto, setVista } = useAppStore();
   const [tab, setTab] = useState<Tab>('fases');
   const [editing, setEditing] = useState<Proyecto | null>(null);
+  const [empresaId, setEmpresaId] = useState('todas');
   const { puedeEditarProyectos, esCliente } = usePermisos();
   const proyecto = proyectos.find((p) => p.id === proyectoActivoId);
   const fasesProyecto = useMemo(() => fases.filter((f) => f.proyectoId === proyectoActivoId).sort((a, b) => a.orden - b.orden), [fases, proyectoActivoId]);
   const tareasProyecto = tareas.filter((t) => t.proyectoId === proyectoActivoId);
+  const empresasProyecto = proyecto?.empresas ?? [];
+  const tareasControl = empresaId === 'todas' ? tareasProyecto : tareasProyecto.filter((tarea) => tarea.empresaId === empresaId);
   const faseActiva = fasesProyecto.find((f) => f.id === faseActivaId);
-  const tareasFase = faseActiva ? tareasProyecto.filter((t) => t.faseId === faseActiva.id) : tareasProyecto;
+  const tareasFase = faseActiva ? tareasControl.filter((t) => t.faseId === faseActiva.id) : tareasControl;
 
   useEffect(() => {
     if (useAppStore.getState().tareaActivaId) {
       setTab('tareas');
     }
   }, [proyectoActivoId, faseActivaId]);
+
+  useEffect(() => {
+    setEmpresaId('todas');
+  }, [proyectoActivoId]);
 
   if (!proyecto) {
     return (
@@ -45,10 +52,10 @@ export function ProyectoDetail() {
     );
   }
 
-  const pct = calcPctProyecto(proyecto.id, tareas);
-  const cumplimiento = calcCumplimientoGanttProyecto(proyecto.id, tareas);
-  const planificado = calcPctPlanificadoProyecto(proyecto.id, tareas);
-  const estado = semaforoCumplimientoProyecto(proyecto.id, tareas);
+  const pct = calcPctProyecto(proyecto.id, tareasControl);
+  const cumplimiento = calcCumplimientoGanttProyecto(proyecto.id, tareasControl);
+  const planificado = calcPctPlanificadoProyecto(proyecto.id, tareasControl);
+  const estado = semaforoCumplimientoProyecto(proyecto.id, tareasControl);
   const info = getClientInfo(proyecto);
   const hrAdmin = cumplimientoHrAdminPorProyecto[proyecto.id] ?? [];
   const hrAdminAvance = hrAdmin.length
@@ -117,6 +124,34 @@ export function ProyectoDetail() {
         </div>
       </GlassCard>
 
+      {empresasProyecto.length ? (
+        <GlassCard className="p-4 sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">Control individual</p>
+              <h2 className="mt-1 text-lg font-semibold text-white">Empresa de la ola</h2>
+              <p className="mt-1 text-sm text-slate-400">Selecciona una empresa para revisar su propio plan, tareas y avance.</p>
+            </div>
+            <select
+              className="min-w-72 rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-white"
+              value={empresaId}
+              onChange={(event) => setEmpresaId(event.target.value)}
+              aria-label="Empresa de la ola"
+            >
+              <option value="todas">Toda la ola · {empresasProyecto.length} empresas</option>
+              {empresasProyecto.map((empresa) => (
+                <option key={empresa.id} value={empresa.id}>{empresa.nombre}</option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-400">
+            <span className="rounded-full bg-emerald-400/10 px-3 py-1.5 text-emerald-200">{empresasProyecto.filter((empresa) => empresa.estado === 'confirmada').length} nombres confirmados</span>
+            <span className="rounded-full bg-amber-300/10 px-3 py-1.5 text-amber-200">{empresasProyecto.filter((empresa) => empresa.estado === 'pendiente_nombre').length} pendientes de nombre</span>
+            <span className="rounded-full bg-white/5 px-3 py-1.5">{tareasControl.length} tareas en la vista</span>
+          </div>
+        </GlassCard>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         {[
           ['fases', LayoutGrid, 'Fases'],
@@ -158,9 +193,9 @@ export function ProyectoDetail() {
 
       {tab === 'fases' && !faseActiva ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {fasesProyecto.map((fase) => (
-            <FaseCard key={fase.id} fase={fase} tareas={tareasProyecto} />
-          ))}
+            {fasesProyecto.map((fase) => (
+              <FaseCard key={fase.id} fase={fase} tareas={tareasControl} />
+            ))}
         </div>
       ) : null}
 

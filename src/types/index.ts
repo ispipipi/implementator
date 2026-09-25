@@ -64,6 +64,7 @@ export interface Ejecutivo {
 export interface Proyecto {
   id: string;
   nombre: string;
+  empresas?: EmpresaProyecto[];
   rut: string;
   razonSocial: string;
   representanteLegal: string;
@@ -79,6 +80,12 @@ export interface Proyecto {
   estado: 'activo' | 'completado' | 'pausado';
   observaciones: string;
   creadoEn: string;
+}
+
+export interface EmpresaProyecto {
+  id: string;
+  nombre: string;
+  estado: 'confirmada' | 'pendiente_nombre';
 }
 
 export interface Fase {
@@ -107,6 +114,7 @@ export interface Tarea {
   id: string;
   faseId: string;
   proyectoId: string;
+  empresaId?: string;
   nombre: string;
   descripcion?: string;
   responsable: string;
