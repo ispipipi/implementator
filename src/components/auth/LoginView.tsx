@@ -46,11 +46,23 @@ export function LoginView() {
           const proyectoActual = estadoActual.proyectos.find((proyecto) => proyecto.id === OLA_1_ID);
           const tareasRemotas = estadoRemoto.tareas?.filter((tarea) => tarea.proyectoId === OLA_1_ID) ?? [];
           const tareasActuales = estadoActual.tareas.filter((tarea) => tarea.proyectoId === OLA_1_ID);
+          const fasesRemotas = estadoRemoto.fases?.filter((fase) => fase.proyectoId === OLA_1_ID) ?? [];
+          const fasesActuales = estadoActual.fases.filter((fase) => fase.proyectoId === OLA_1_ID);
+          const planOla1Cambio =
+            fasesRemotas.length !== fasesActuales.length ||
+            fasesActuales.some((fase) => {
+              const faseRemota = fasesRemotas.find((item) => item.id === fase.id);
+              return !faseRemota ||
+                faseRemota.nombre !== fase.nombre ||
+                faseRemota.fechaInicioPlan !== fase.fechaInicioPlan ||
+                faseRemota.fechaFinPlan !== fase.fechaFinPlan;
+            });
           const debePersistirMigracionOla1 =
             !proyectoRemoto ||
             proyectoRemoto.empresas?.length !== proyectoActual?.empresas?.length ||
             tareasRemotas.length !== tareasActuales.length ||
-            tareasRemotas.some((tarea) => !tarea.empresaId);
+            tareasRemotas.some((tarea) => !tarea.empresaId) ||
+            planOla1Cambio;
 
           if (debePersistirMigracionOla1) {
             await saveWorkspaceState(estadoActual, 'migracion_ola_1_empresas');

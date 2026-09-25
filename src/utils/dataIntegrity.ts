@@ -126,10 +126,18 @@ export const asegurarSemillaOla1 = (
   const proyectoExistente = proyectos.find((proyecto) => proyecto.id === OLA_1_ID);
   if (proyectoExistente) {
     const empresasPermitidas = new Set((proyectoSemilla.empresas ?? []).map((empresa) => empresa.id));
-    const empresasActuales = proyectoExistente.empresas?.filter((empresa) => empresasPermitidas.has(empresa.id));
-    const empresas = empresasActuales?.length ? empresasActuales : proyectoSemilla.empresas ?? [];
+    const empresasActuales = new Map(
+      (proyectoExistente.empresas ?? [])
+        .filter((empresa) => empresasPermitidas.has(empresa.id))
+        .map((empresa) => [empresa.id, empresa]),
+    );
+    const empresas = (proyectoSemilla.empresas ?? []).map((empresa) => ({
+      ...empresa,
+      ...empresasActuales.get(empresa.id),
+    }));
     const tareasOla = tareas.filter((tarea) => tarea.proyectoId === OLA_1_ID && (!tarea.empresaId || empresasPermitidas.has(tarea.empresaId)));
-    const tareasPorEmpresa = tareasSemilla.filter((tarea) => tarea.proyectoId === OLA_1_ID).length / Math.max(empresas.length, 1);
+    const tareasSemillaOla = tareasSemilla.filter((tarea) => tarea.proyectoId === OLA_1_ID);
+    const tareasPorEmpresa = tareasSemillaOla.length / Math.max(empresas.length, 1);
     const tareasOlaReparadas = tareasOla.map((tarea, index) => {
       if (tarea.empresaId && empresasPermitidas.has(tarea.empresaId)) return tarea;
 
@@ -143,14 +151,66 @@ export const asegurarSemillaOla1 = (
         empresaId: empresaPorId?.id ?? empresaPorBloque?.id,
       };
     });
-    const proyectosLimpios = proyectos.map((proyecto) =>
-      proyecto.id === OLA_1_ID ? { ...proyecto, empresas } : proyecto,
+    const tareasExistentesPorClave = new Map(
+      tareasOlaReparadas
+        .filter((tarea) => tarea.empresaId)
+        .map((tarea) => [`${tarea.empresaId}|${tarea.faseId}|${tarea.nombre}`, tarea]),
     );
-    const tareasLimpias = [
-      ...tareas.filter((tarea) => tarea.proyectoId !== OLA_1_ID),
-      ...tareasOlaReparadas,
-    ];
-    return { proyectos: proyectosLimpios, fases, tareas: tareasLimpias };
+    const fasesOlaSemilla = fasesSemilla.filter((fase) => fase.proyectoId === OLA_1_ID);
+    const fasesSincronizadas = fasesOlaSemilla.map((faseSemilla) => {
+      const faseExistente = fases.find((fase) =>
+        fase.proyectoId === OLA_1_ID && (fase.id === faseSemilla.id || fase.codigo === faseSemilla.codigo),
+      );
+
+      return {
+        ...faseSemilla,
+        ...(faseExistente
+          ? {
+              fechaInicioReal: faseExistente.fechaInicioReal,
+              fechaFinReal: faseExistente.fechaFinReal,
+            }
+          : {}),
+      };
+    });
+    const tareasSincronizadas = tareasSemillaOla.map((tareaSemilla) => {
+      const tareaExistente = tareasExistentesPorClave.get(
+        `${tareaSemilla.empresaId}|${tareaSemilla.faseId}|${tareaSemilla.nombre}`,
+      );
+
+      if (!tareaExistente) return tareaSemilla;
+
+      return {
+        ...tareaSemilla,
+        ...tareaExistente,
+        id: tareaExistente.id,
+        faseId: tareaSemilla.faseId,
+        proyectoId: OLA_1_ID,
+        empresaId: tareaSemilla.empresaId,
+        nombre: tareaSemilla.nombre,
+        descripcion: tareaSemilla.descripcion,
+        fechaInicioPlan: tareaSemilla.fechaInicioPlan,
+        fechaFinPlan: tareaSemilla.fechaFinPlan,
+        duracionDias: tareaSemilla.duracionDias,
+        esMilestone: tareaSemilla.esMilestone,
+      };
+    });
+    const proyectosSincronizados = proyectos.map((proyecto) =>
+      proyecto.id === OLA_1_ID
+        ? {
+            ...proyecto,
+            empresas,
+            fechaInicio: proyectoSemilla.fechaInicio,
+            fechaGoLive: proyectoSemilla.fechaGoLive,
+            observaciones: proyectoSemilla.observaciones,
+          }
+        : proyecto,
+    );
+
+    return {
+      proyectos: proyectosSincronizados,
+      fases: [...fases.filter((fase) => fase.proyectoId !== OLA_1_ID), ...fasesSincronizadas],
+      tareas: [...tareas.filter((tarea) => tarea.proyectoId !== OLA_1_ID), ...tareasSincronizadas],
+    };
   }
 
   return {
