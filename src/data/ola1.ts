@@ -43,7 +43,7 @@ const fasesConservadas: Fase[] = codigosFasesConservadas.map((codigo, orden) => 
     id: idFase(codigo),
     proyectoId: OLA_1_ID,
     orden,
-    fechaInicioPlan: desplazarFecha(fase.fechaInicioPlan),
+    fechaInicioPlan: codigo === 'SDV8' ? '2026-10-01' : desplazarFecha(fase.fechaInicioPlan),
     fechaFinPlan: codigo === 'SDV8' ? '2026-10-15' : desplazarFecha(fase.fechaFinPlan),
   };
 });
@@ -104,6 +104,28 @@ const tareasOtrasImplementaciones = new Map<string, Pick<Tarea, 'fechaInicioPlan
     fechaFinPlan: '2026-10-30',
   }],
 ]);
+const tareasSaldosVacaciones = new Map<string, Pick<Tarea, 'fechaInicioPlan' | 'fechaFinPlan'>>([
+  ['Hito: Recepción reporte saldos', {
+    fechaInicioPlan: '2026-10-01',
+    fechaFinPlan: '2026-10-02',
+  }],
+  ['Ingreso Saldo Vacaciones Legales', {
+    fechaInicioPlan: '2026-10-01',
+    fechaFinPlan: '2026-10-07',
+  }],
+  ['Ingreso Saldo Vacaciones Progresivas', {
+    fechaInicioPlan: '2026-10-01',
+    fechaFinPlan: '2026-10-07',
+  }],
+  ['Ajustes de saldos', {
+    fechaInicioPlan: '2026-10-08',
+    fechaFinPlan: '2026-10-12',
+  }],
+  ['Revisión y cuadratura de saldos', {
+    fechaInicioPlan: '2026-10-13',
+    fechaFinPlan: '2026-10-15',
+  }],
+]);
 
 const desplazarTareaParalelo = (tarea: Tarea, faseDestino: Fase) => {
   const inicioFuente = faseParaleloFuente?.fechaInicioPlan ?? tarea.fechaInicioPlan;
@@ -155,16 +177,18 @@ const construirTareasEmpresa = (empresa: EmpresaProyecto) => {
       const faseDestino = faseFuente ? faseOlaPorCodigo.get(faseFuente.codigo) : undefined;
       if (!faseDestino) throw new Error(`No se encontró fase Ola 1 para ${faseFuente?.codigo ?? tarea.faseId}`);
 
-      const fechasOtrasImplementaciones = faseFuente?.codigo === 'OIYC10'
+      const fechasPersonalizadas = faseFuente?.codigo === 'OIYC10'
         ? tareasOtrasImplementaciones.get(tarea.nombre)
-        : undefined;
+        : faseFuente?.codigo === 'SDV8'
+          ? tareasSaldosVacaciones.get(tarea.nombre)
+          : undefined;
 
       return construirTarea(
         empresa,
         tarea,
         faseDestino.id,
         tarea.id.replace('agrichile-gantt-', ''),
-        fechasOtrasImplementaciones,
+        fechasPersonalizadas,
       );
     });
 
