@@ -44,7 +44,7 @@ const fasesConservadas: Fase[] = codigosFasesConservadas.map((codigo, orden) => 
     proyectoId: OLA_1_ID,
     orden,
     fechaInicioPlan: desplazarFecha(fase.fechaInicioPlan),
-    fechaFinPlan: desplazarFecha(fase.fechaFinPlan),
+    fechaFinPlan: codigo === 'SDV8' ? '2026-10-15' : desplazarFecha(fase.fechaFinPlan),
   };
 });
 
