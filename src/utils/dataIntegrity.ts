@@ -1,5 +1,6 @@
 import { Alerta, CumplimientoHrAdminItem, Ejecutivo, ExpedienteProyecto, Fase, Proyecto, Tarea, UsuarioActivo } from '../types';
 import { normalizarResponsable } from './assignee';
+import { obtenerIdsEmpresaTarea } from './taskCompanies';
 import { CUMPLIMIENTO_HR_ADMIN_SEED } from '../data/cumplimientoHrAdmin';
 import { OLA_1_ID } from '../data/ola1';
 
@@ -135,26 +136,43 @@ export const asegurarSemillaOla1 = (
       ...empresa,
       ...empresasActuales.get(empresa.id),
     }));
-    const tareasOla = tareas.filter((tarea) => tarea.proyectoId === OLA_1_ID && (!tarea.empresaId || empresasPermitidas.has(tarea.empresaId)));
+    const tareasOla = tareas.filter((tarea) => {
+      if (tarea.proyectoId !== OLA_1_ID) return false;
+      const empresasTarea = obtenerIdsEmpresaTarea(tarea);
+      return !empresasTarea.length || empresasTarea.some((empresaId) => empresasPermitidas.has(empresaId));
+    });
     const tareasSemillaOla = tareasSemilla.filter((tarea) => tarea.proyectoId === OLA_1_ID);
-    const tareasPorEmpresa = tareasSemillaOla.length / Math.max(empresas.length, 1);
+    const tareasPorEmpresa = tareasOla.length / Math.max(empresas.length, 1);
     const tareasOlaReparadas = tareasOla.map((tarea, index) => {
-      if (tarea.empresaId && empresasPermitidas.has(tarea.empresaId)) return tarea;
+      const empresasTarea = obtenerIdsEmpresaTarea(tarea).filter((empresaId) => empresasPermitidas.has(empresaId));
+      if (empresasTarea.length) {
+        return {
+          ...tarea,
+          empresaId: empresasTarea.length === 1 ? empresasTarea[0] : undefined,
+          empresaIds: empresasTarea,
+        };
+      }
 
-      const empresaPorId = empresas.find((empresa) => tarea.id.includes(empresa.id));
+      const empresasPorId = empresas.filter((empresa) => tarea.id.includes(`-${empresa.id}-`));
       const empresaPorBloque = Number.isInteger(tareasPorEmpresa) && tareasPorEmpresa > 0
         ? empresas[Math.floor(index / tareasPorEmpresa)]
         : undefined;
 
       return {
         ...tarea,
-        empresaId: empresaPorId?.id ?? empresaPorBloque?.id,
+        empresaId: empresasPorId[0]?.id ?? empresaPorBloque?.id,
+        empresaIds: [empresasPorId[0]?.id ?? empresaPorBloque?.id].filter(Boolean) as string[],
       };
     });
     const tareasExistentesPorClave = new Map(
       tareasOlaReparadas
-        .filter((tarea) => tarea.empresaId)
-        .map((tarea) => [`${tarea.empresaId}|${tarea.faseId}|${tarea.nombre}`, tarea]),
+        .reduce((mapa, tarea) => {
+          const clave = `${tarea.faseId}|${tarea.nombre}`;
+          const existentes = mapa.get(clave) ?? [];
+          existentes.push(tarea);
+          mapa.set(clave, existentes);
+          return mapa;
+        }, new Map<string, Tarea[]>()),
     );
     const fasesOlaSemilla = fasesSemilla.filter((fase) => fase.proyectoId === OLA_1_ID);
     const fasesSincronizadas = fasesOlaSemilla.map((faseSemilla) => {
@@ -173,9 +191,10 @@ export const asegurarSemillaOla1 = (
       };
     });
     const tareasSincronizadas = tareasSemillaOla.map((tareaSemilla) => {
-      const tareaExistente = tareasExistentesPorClave.get(
-        `${tareaSemilla.empresaId}|${tareaSemilla.faseId}|${tareaSemilla.nombre}`,
-      );
+      const tareasExistentes = tareasExistentesPorClave.get(`${tareaSemilla.faseId}|${tareaSemilla.nombre}`) ?? [];
+      const tareaExistente = [...tareasExistentes]
+        .sort((a, b) => new Date(b.actualizadoEn).getTime() - new Date(a.actualizadoEn).getTime())[0];
+      const empresasTarea = obtenerIdsEmpresaTarea(tareaSemilla).filter((empresaId) => empresasPermitidas.has(empresaId));
 
       if (!tareaExistente) return tareaSemilla;
 
@@ -185,7 +204,8 @@ export const asegurarSemillaOla1 = (
         id: tareaExistente.id,
         faseId: tareaSemilla.faseId,
         proyectoId: OLA_1_ID,
-        empresaId: tareaSemilla.empresaId,
+        empresaId: empresasTarea.length === 1 ? empresasTarea[0] : undefined,
+        empresaIds: empresasTarea,
         nombre: tareaSemilla.nombre,
         descripcion: tareaSemilla.descripcion,
         fechaInicioPlan: tareaSemilla.fechaInicioPlan,
@@ -239,6 +259,7 @@ export const sanitizarTarea = (tarea: Tarea, personas: Persona[]): Tarea => {
   const inicio = normalizeIsoDate(tarea.fechaInicioPlan) ?? new Date().toISOString().slice(0, 10);
   const finRaw = normalizeIsoDate(tarea.fechaFinPlan) ?? inicio;
   const fin = finRaw < inicio ? inicio : finRaw;
+  const empresaIds = obtenerIdsEmpresaTarea(tarea);
   const reasignacionPendiente = tarea.reasignacionPendiente
     ? {
         ...tarea.reasignacionPendiente,
@@ -251,6 +272,7 @@ export const sanitizarTarea = (tarea: Tarea, personas: Persona[]): Tarea => {
 
   return {
     ...tarea,
+    empresaIds: empresaIds.length ? empresaIds : undefined,
     nombre: trimOrFallback(tarea.nombre, 'Tarea sin nombre'),
     descripcion: tarea.descripcion?.trim() ?? '',
     responsable: canonicalizarResponsable(tarea.responsable, personas),

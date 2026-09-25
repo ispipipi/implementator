@@ -216,7 +216,39 @@ const construirTareasEmpresa = (empresa: EmpresaProyecto) => {
   ];
 };
 
-export const OLA_1_TAREAS: Tarea[] = OLA_1_EMPRESAS.flatMap(construirTareasEmpresa);
+const tareasOla1PorEmpresa: Tarea[] = OLA_1_EMPRESAS.flatMap(construirTareasEmpresa);
+
+const agruparTareasPorEmpresa = (tareas: Tarea[]) => {
+  const agrupadas = new Map<string, Tarea>();
+  const primeraEmpresaId = OLA_1_EMPRESAS[0]?.id;
+
+  tareas.forEach((tarea) => {
+    const clave = `${tarea.faseId}|${tarea.nombre}`;
+    const empresaId = tarea.empresaId;
+    const actual = agrupadas.get(clave);
+
+    if (!actual) {
+      agrupadas.set(clave, {
+        ...tarea,
+        id: primeraEmpresaId ? tarea.id.replace(`-${primeraEmpresaId}-`, '-') : tarea.id,
+        empresaId: undefined,
+        empresaIds: empresaId ? [empresaId] : [],
+      });
+      return;
+    }
+
+    if (empresaId && !actual.empresaIds?.includes(empresaId)) {
+      actual.empresaIds = [...(actual.empresaIds ?? []), empresaId];
+    }
+  });
+
+  return Array.from(agrupadas.values()).map((tarea) => ({
+    ...tarea,
+    empresaIds: OLA_1_EMPRESAS.map((empresa) => empresa.id),
+  }));
+};
+
+export const OLA_1_TAREAS: Tarea[] = agruparTareasPorEmpresa(tareasOla1PorEmpresa);
 
 export const PROYECTO_OLA_1: Proyecto = {
   id: OLA_1_ID,

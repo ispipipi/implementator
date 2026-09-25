@@ -123,7 +123,7 @@ export function ProyectoEditDrawer({ proyecto, onClose }: Props) {
           <section className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
             <div className="mb-3">
               <p className="text-sm font-semibold text-white">Empresas de la ola</p>
-              <p className="mt-1 text-xs text-slate-400">Actualiza los nombres pendientes. Cada empresa conserva su propio plan de tareas.</p>
+              <p className="mt-1 text-xs text-slate-400">Actualiza los nombres pendientes. Las empresas pueden asociarse a una o varias tareas desde su ficha.</p>
             </div>
             <div className="grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
               {form.empresas.map((empresa, index) => (

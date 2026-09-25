@@ -61,7 +61,7 @@ export function LoginView() {
             !proyectoRemoto ||
             proyectoRemoto.empresas?.length !== proyectoActual?.empresas?.length ||
             tareasRemotas.length !== tareasActuales.length ||
-            tareasRemotas.some((tarea) => !tarea.empresaId) ||
+            tareasRemotas.some((tarea) => !(tarea.empresaIds?.length || tarea.empresaId)) ||
             planOla1Cambio;
 
           if (debePersistirMigracionOla1) {

@@ -115,6 +115,7 @@ export interface Tarea {
   faseId: string;
   proyectoId: string;
   empresaId?: string;
+  empresaIds?: string[];
   nombre: string;
   descripcion?: string;
   responsable: string;

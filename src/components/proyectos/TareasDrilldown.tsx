@@ -9,6 +9,7 @@ import { GlassCard } from '../ui/GlassCard';
 import { ProgressBar } from '../ui/ProgressBar';
 import { StatusBadge } from '../ui/StatusBadge';
 import { TareaEditDrawer } from './TareaEditDrawer';
+import { obtenerEmpresasTarea } from '../../utils/taskCompanies';
 
 type Props = {
   tareas: Tarea[];
@@ -401,7 +402,8 @@ export function TareasDrilldown({ tareas, showProjectLevel = true, query = '', s
     return ordered.filter((tarea) => {
       const proyecto = proyectos.find((p) => p.id === tarea.proyectoId);
       const fase = fases.find((f) => f.id === tarea.faseId);
-      return [tarea.nombre, tarea.responsable, tarea.estado, proyecto?.nombre, fase?.nombre, fase?.codigo]
+      const empresas = obtenerEmpresasTarea(tarea, proyecto).map((empresa) => empresa.nombre);
+      return [tarea.nombre, tarea.responsable, tarea.estado, proyecto?.nombre, fase?.nombre, fase?.codigo, ...empresas]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalized));
     });
@@ -451,8 +453,7 @@ export function TareasDrilldown({ tareas, showProjectLevel = true, query = '', s
 
   const renderTask = (tarea: Tarea) => {
     const proyecto = proyectos.find((p) => p.id === tarea.proyectoId);
-    const empresa = proyecto?.empresas?.find((item) => item.id === tarea.empresaId)
-      ?? proyecto?.empresas?.find((item) => tarea.id.includes(`-${item.id}-`));
+    const empresasTarea = obtenerEmpresasTarea(tarea, proyecto);
     const vencida = tareaEstaVencida(tarea);
     const overdueDays = diasVencida(tarea);
     const reasignacionPendiente = tarea.reasignacionPendiente?.estado === 'pendiente';
@@ -524,10 +525,15 @@ export function TareasDrilldown({ tareas, showProjectLevel = true, query = '', s
                   </span>
                 ) : null}
               </div>
-              {empresa ? (
-                <p className="mb-1 flex max-w-full items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-emerald-300">
+              {empresasTarea.length ? (
+                <p
+                  className="mb-1 flex max-w-full items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-emerald-300"
+                  title={empresasTarea.map((empresa) => empresa.nombre).join(', ')}
+                >
                   <Building2 className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{empresa.nombre}</span>
+                  <span className="truncate">
+                    {empresasTarea.length === 1 ? empresasTarea[0].nombre : `${empresasTarea.length} empresas asociadas`}
+                  </span>
                 </p>
               ) : null}
               <h4 className="line-clamp-2 text-sm font-semibold text-white transition group-hover:text-emerald-100">{tarea.nombre}</h4>

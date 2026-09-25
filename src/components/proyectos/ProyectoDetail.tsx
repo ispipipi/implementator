@@ -14,6 +14,7 @@ import { FaseCard } from './FaseCard';
 import { ProyectoExpediente } from './ProyectoExpediente';
 import { ProyectoEditDrawer } from './ProyectoEditDrawer';
 import { TareasList } from './TareasList';
+import { obtenerIdsEmpresaTarea } from '../../utils/taskCompanies';
 
 type Tab = 'tareas' | 'fases' | 'gantt' | 'expediente' | 'alertas' | 'hr_admin';
 
@@ -28,7 +29,9 @@ export function ProyectoDetail() {
   const tareasProyecto = tareas.filter((t) => t.proyectoId === proyectoActivoId);
   const empresasProyecto = proyecto?.empresas ?? [];
   const empresasPendientes = empresasProyecto.filter((empresa) => empresa.estado === 'pendiente_nombre');
-  const tareasControl = empresaId === 'todas' ? tareasProyecto : tareasProyecto.filter((tarea) => tarea.empresaId === empresaId);
+  const tareasControl = empresaId === 'todas'
+    ? tareasProyecto
+    : tareasProyecto.filter((tarea) => obtenerIdsEmpresaTarea(tarea).includes(empresaId));
   const faseActiva = fasesProyecto.find((f) => f.id === faseActivaId);
   const tareasFase = faseActiva ? tareasControl.filter((t) => t.faseId === faseActiva.id) : tareasControl;
 

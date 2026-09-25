@@ -7,6 +7,7 @@ import { usePermisos } from '../../hooks/usePermisos';
 import { StatusBadge } from '../ui/StatusBadge';
 import { normalizarResponsable, responsableAsignadoAUsuario } from '../../utils/assignee';
 import { diasVencida, tareaEstaVencida } from '../../utils/taskHealth';
+import { obtenerEmpresasTarea, obtenerIdsEmpresaTarea } from '../../utils/taskCompanies';
 
 type Props = {
   tarea: Tarea | null;
@@ -122,6 +123,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
     estado: 'pendiente' as EstadoTarea,
     fechaInicioPlan: '',
     fechaFinPlan: '',
+    empresaIds: [] as string[],
     comentarioNuevo: '',
     responsableDestrabe: '',
     motivoImpedimento: '',
@@ -135,8 +137,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
 
   const tareaActual = tarea ? tareas.find((item) => item.id === tarea.id) ?? tarea : null;
   const proyecto = tareaActual ? proyectos.find((p) => p.id === tareaActual.proyectoId) : null;
-  const empresa = proyecto?.empresas?.find((item) => item.id === tareaActual?.empresaId)
-    ?? proyecto?.empresas?.find((item) => tareaActual?.id.includes(`-${item.id}-`));
+  const empresasTarea = tareaActual ? obtenerEmpresasTarea(tareaActual, proyecto) : [];
   const fase = tareaActual ? fases.find((f) => f.id === tareaActual.faseId) : null;
   const vencida = tareaActual ? tareaEstaVencida(tareaActual) : false;
   const overdueDays = tareaActual ? diasVencida(tareaActual) : 0;
@@ -180,6 +181,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
       estado: tareaActual.estado,
       fechaInicioPlan: tareaActual.fechaInicioPlan,
       fechaFinPlan: tareaActual.fechaFinPlan,
+      empresaIds: obtenerIdsEmpresaTarea(tareaActual),
       comentarioNuevo: '',
       responsableDestrabe: '',
       motivoImpedimento: '',
@@ -190,7 +192,7 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
     setMensajeImpedimento(null);
     setMensajeReasignacion(null);
     setPanelAccionActivo('estado');
-  }, [tareaActual?.fechaFinPlan, tareaActual?.fechaInicioPlan, tareaActual?.id, tareaActual?.estado]);
+  }, [tareaActual?.empresaIds?.join('|'), tareaActual?.fechaFinPlan, tareaActual?.fechaInicioPlan, tareaActual?.id, tareaActual?.estado]);
 
   const save = () => {
     if (!tareaActual) return;
@@ -214,6 +216,8 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
         ? {
             fechaInicioPlan: form.fechaInicioPlan,
             fechaFinPlan: form.fechaFinPlan,
+            empresaIds: form.empresaIds,
+            empresaId: form.empresaIds.length === 1 ? form.empresaIds[0] : undefined,
           }
         : {}),
     };
@@ -348,10 +352,10 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
             <h3 className="text-xl font-semibold leading-tight text-white">{tareaActual?.nombre}</h3>
             {tareaActual?.descripcion ? <p className="mt-1 break-words text-sm text-slate-400">{tareaActual.descripcion}</p> : null}
             <p className="mt-2 truncate text-xs text-slate-500">{proyecto?.nombre ?? 'Proyecto'}</p>
-            {empresa ? (
+            {empresasTarea.length ? (
               <p className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md bg-emerald-400/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-200">
                 <Building2 className="h-3.5 w-3.5 shrink-0" />
-                Empresa: <span className="truncate">{empresa.nombre}</span>
+                {empresasTarea.length === 1 ? 'Empresa' : `${empresasTarea.length} empresas`}: <span className="truncate">{empresasTarea.map((empresa) => empresa.nombre).join(', ')}</span>
               </p>
             ) : null}
 
@@ -386,6 +390,50 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
               </div>
             </div>
           </section>
+
+          {proyecto?.empresas?.length ? (
+            <section className="min-w-0 rounded-xl border border-white/10 bg-white/[0.035] p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Empresas asociadas</h3>
+                  <p className="mt-1 text-xs text-slate-400">Selecciona las empresas que participan en esta tarea.</p>
+                </div>
+                <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-xs font-medium text-emerald-200">
+                  {form.empresaIds.length} seleccionada(s)
+                </span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {proyecto.empresas.map((empresa) => {
+                  const seleccionada = form.empresaIds.includes(empresa.id);
+                  return (
+                    <label
+                      key={empresa.id}
+                      className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 text-sm transition ${
+                        seleccionada
+                          ? 'border-emerald-300/40 bg-emerald-400/10 text-emerald-100'
+                          : 'border-white/10 bg-white/[0.025] text-slate-300 hover:border-white/20'
+                      } ${!puedeEditarDatosTarea ? 'cursor-not-allowed opacity-70' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={seleccionada}
+                        disabled={!puedeEditarDatosTarea}
+                        onChange={() => setForm((current) => ({
+                          ...current,
+                          empresaIds: seleccionada
+                            ? current.empresaIds.filter((id) => id !== empresa.id)
+                            : [...current.empresaIds, empresa.id],
+                        }))}
+                        className="h-4 w-4 accent-emerald-400"
+                      />
+                      <span className="min-w-0 truncate">{empresa.nombre}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              {!puedeEditarDatosTarea ? <p className="mt-3 text-xs text-slate-500">Tu perfil puede consultar la selección, pero no modificarla.</p> : null}
+            </section>
+          ) : null}
 
           <section className="min-w-0 rounded-xl border border-white/10 bg-white/[0.035] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
