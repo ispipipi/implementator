@@ -135,7 +135,8 @@ export function TareaEditDrawer({ tarea, onClose }: Props) {
 
   const tareaActual = tarea ? tareas.find((item) => item.id === tarea.id) ?? tarea : null;
   const proyecto = tareaActual ? proyectos.find((p) => p.id === tareaActual.proyectoId) : null;
-  const empresa = proyecto?.empresas?.find((item) => item.id === tareaActual?.empresaId);
+  const empresa = proyecto?.empresas?.find((item) => item.id === tareaActual?.empresaId)
+    ?? proyecto?.empresas?.find((item) => tareaActual?.id.includes(`-${item.id}-`));
   const fase = tareaActual ? fases.find((f) => f.id === tareaActual.faseId) : null;
   const vencida = tareaActual ? tareaEstaVencida(tareaActual) : false;
   const overdueDays = tareaActual ? diasVencida(tareaActual) : 0;
